@@ -36,7 +36,7 @@ processes (called "oroutines") using Tornado's event loop:
 
 ## Related Work
 monocle is similar to, and takes inspiration from:
-Twisted's inlineCallbacks
-BTL's yielddefer
-diesel
-Go's goroutines
+ * Twisted's inlineCallbacks
+ * BTL's yielddefer
+ * diesel
+ * Go's goroutines
