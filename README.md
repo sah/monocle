@@ -11,7 +11,7 @@ in older versions of Python.
 ## A Simple Example
 
 Here's a simple monocle program that runs two concurrent lightweight
-processes (called "oroutines") using Tornado's event loop:
+processes (called "o-routines") using Tornado's event loop:
 
     import monocle
     monocle.init("tornado")
