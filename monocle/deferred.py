@@ -15,6 +15,7 @@ class Deferred(object):
             cb(result)
         self.result = result
 
+
 def defer(result):
     d = Deferred()
     d.result = result

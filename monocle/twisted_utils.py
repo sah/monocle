@@ -1,3 +1,4 @@
+# copied from twisted.python.util for convenience
 def mergeFunctionMetadata(f, g):
     """
     Overwrite C{g}'s name and docstring with values from C{f}.  Update
