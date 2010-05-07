@@ -19,20 +19,37 @@ processes (called "oroutines") using Tornado's event loop:
     from monocle.util import sleep
 
     @monocle.o
-    def print_every_second():
+    def seconds():
         while True:
-            print "1"
             yield sleep(1)
+            print "1"
 
     @monocle.o
-    def print_every_two_seconds():
+    def minutes():
         while True:
-            print "2"
-            yield sleep(2)
+            yield sleep(60)
+            print "60"
 	    
-    monocle.launch(print_every_second)
-    monocle.launch(print_every_two_seconds)
+    monocle.launch(seconds)
+    monocle.launch(minutes)
     eventloop.run()
+
+## @_o
+
+It's important that code look stylish, so if you prefer, you can don
+the monocle and use this handy shortcut for monocle.o:
+
+    from monocle import _o
+
+    @_o
+    def seconds():
+        while True:
+            yield sleep(1)
+            print "1"
+
+It's true, this violates Python's convention that underscores indicate
+variables for internal use.  But rules are for breaking.  Live a
+little.
 
 ## Related Work
 monocle is similar to, and takes inspiration from:
