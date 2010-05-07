@@ -130,6 +130,7 @@ an o-routine means "yield to other o-routines until we finish reading
 monocle is similar to, and takes inspiration from:
 
  * Twisted's inlineCallbacks
- * BTL's yielddefer
+ * BitTorrent's yielddefer (used in the 5.x mainline client)
  * diesel
  * Go's goroutines (and CSP generally)
+ * eventlet
