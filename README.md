@@ -78,15 +78,16 @@ Here's the same thing in event-driven style, using callbacks:
             conn.write("unknown command")
 
     def handle_user_query_result(conn, user):
-	conn.write(user.address)
+        conn.write(user.address)
 
 What started out as a single function in the blocking code has
 expanded here into three functions (counting the `callback` closure
-that captures `conn`).  Any time we want to do I/O, we have to
-register a new handler and return back out to the event loop to let
-other things happen while we wait for the I/O to finish.  It would be
-nice if we had some way to tell the event loop to call back into the
-*middle* of our function, so we could just continue where we left off.
+that captures `conn`).  In real event-driven code, this kind of thing
+happens a *lot*.  Any time we want to do I/O, we have to register a
+new handler and return back out to the event loop to let other things
+happen while we wait for the I/O to finish.  It would be nice if we
+had some way to tell the event loop to call back into the *middle* of
+our function, so we could just continue where we left off.
 
 Fortunately, Python has a mechanism that lets us do exactly that,
 called generators.  Monocle uses generators to straighten out
