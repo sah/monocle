@@ -29,7 +29,7 @@ processes (called "o-routines") using Tornado's event loop:
         while True:
             yield sleep(60)
             print "60"
-	    
+            
     monocle.launch(seconds)
     monocle.launch(minutes)
     eventloop.run()
@@ -60,7 +60,7 @@ and return a result:
 
     def do_cmd(conn):
         cmd = conn.read_until("\n")
-	if cmd.type == "get-address":
+        if cmd.type == "get-address":
             user = db.query(cmd.username)
             conn.write(user.address)
         else:
@@ -70,7 +70,7 @@ Here's the same thing in event-driven style, using callbacks:
 
     def handle_cmd(conn, cmd):
         if cmd.type == "get-address":
-	    # keep track of the conn so we can write the response back!
+            # keep track of the conn so we can write the response back!
             def callback(result):
                 handle_user_query_result(conn, result)
             db.query(cmd.username, callback)
@@ -98,7 +98,7 @@ Here's the monocle equivalent of the event-based code above:
     @_o
     def do_cmd(conn):
         cmd = yield conn.read_until("\n")
-	if cmd.type == "get-address":
+        if cmd.type == "get-address":
             user = yield db.query(cmd.username)
             yield conn.write(user.address)
         else:
