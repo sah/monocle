@@ -105,10 +105,22 @@ Here's the monocle equivalent of the event-based code above:
             yield conn.write("unknown command")
 
 It's event-driven for efficient concurrency, but otherwise looks a lot
-like the original blocking code.  The resulting approach is a kind of
-cooperative concurrency that makes for simpler code than
-callback-based event-driven code, but which we think is easier to
-reason about than multi-threaded code.
+like the original blocking code.  Each time you see the word `yield`
+in the code above, the o-routine is returning back up to the event
+loop and waiting to be called back when the I/O it requested
+completes.
+
+This approach is a kind of cooperative concurrency that makes for
+simpler code than callback-based event-driven code, but which we think
+is easier to reason about than multi-threaded code.
+
+## A word about the word `yield`
+
+In ordinary Python generators, the norm is to think of `yield` as in
+*crops*: the generator yields a value.  In monocle o-routines, it's
+helpful to think of `yield` as in *traffic*.  `yield conn.read(10)` in
+an o-routine means "yield to other o-routines until we finish reading
+10 bytes".
 
 ## Related Work
 monocle is similar to, and takes inspiration from:
