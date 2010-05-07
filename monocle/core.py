@@ -2,16 +2,28 @@
 
 import sys
 import types
+import traceback
+
 from deferred import Deferred, defer
 
 from twisted_utils import mergeFunctionMetadata
 
 try:
-    from twisted.python.failure import TwistedFailure
+    from twisted.python.failure import Failure as TwistedFailure
     from twisted.internet.defer import Deferred as TwistedDeferred
 except ImportError:
     class TwistedFailure: pass
     class TwistedDeferred: pass
+
+
+def format_tb(e):
+    s = ""
+    for tb in reversed(e._monocle['tracebacks']):
+        lines = tb.split('\n')
+        first = lines[0]
+        last = lines[-2]
+        s += "\n" + '\n'.join(lines[1:-2])
+    return first + s + "\n" + last
 
 
 def _monocle_chain(to_gen, g, deferred):
@@ -33,6 +45,10 @@ def _monocle_chain(to_gen, g, deferred):
             # "return" statement (or fell off the end of the generator)
             from_gen = None
         except Exception, e:
+            tb = traceback.format_exc()
+            if not hasattr(e, "_monocle"):
+                e._monocle = {'tracebacks': []}
+            e._monocle['tracebacks'].append(tb)
             deferred.callback(e)
             return deferred
 
@@ -68,6 +84,10 @@ def maybeDeferredGenerator(f, *args, **kw):
     try:
         result = f(*args, **kw)
     except Exception, e:
+        tb = traceback.format_exc()
+        if not hasattr(e, "_monocle"):
+            e._monocle = {'tracebacks': []}
+        e._monocle['tracebacks'].append(tb)
         return defer(e)
 
     if isinstance(result, types.GeneratorType):
