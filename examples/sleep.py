@@ -11,15 +11,15 @@ from monocle.util import sleep
 def print_every_second():
     for i in xrange(5):
         print "1"
-        yield sleep(1.0)
+        yield sleep(1)
 
 @_o
 def print_every_two_seconds():
     for i in xrange(5):
         print "2"
-        yield sleep(2.0)
+        yield sleep(2)
     eventloop.halt()
 
-print_every_second()
-print_every_two_seconds()
+monocle.launch(print_every_second)
+monocle.launch(print_every_two_seconds)
 eventloop.run()

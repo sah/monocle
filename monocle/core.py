@@ -16,6 +16,17 @@ except ImportError:
     class TwistedDeferred: pass
 
 
+def launch(oroutine):
+    df = oroutine()
+    def eb(e):
+        if isinstance(e, Exception):
+            import traceback
+            import sys
+            traceback.print_exception(type(e), e, sys.exc_info()[2])
+    df.add_callback(eb)
+
+
+
 def format_tb(e):
     s = ""
     for tb in reversed(e._monocle['tracebacks']):

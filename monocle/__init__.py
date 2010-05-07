@@ -1,7 +1,7 @@
 import sys
 
 import core
-from core import _o, o
+from core import _o, o, launch
 
 VERSION = '0.1'
 
