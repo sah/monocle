@@ -32,7 +32,7 @@ HTTP server, and the other makes an HTTP request:
     @monocle.o
     def request():
         client = HttpClient()
-	resp = yield client.request('http://127.0.0.1:8088/')
+        resp = yield client.request('http://127.0.0.1:8088/')
         print resp.code, resp.body
 
     add_service(HttpServer(hello_http, 8088))
@@ -49,7 +49,7 @@ you can don the monocle and use this handy shortcut for `@monocle.o`:
     @_o
     def request():
         client = HttpClient()
-	resp = yield client.request('http://127.0.0.1:8088/')
+        resp = yield client.request('http://127.0.0.1:8088/')
         print resp.code, resp.body
 
 It's true, this violates Python's convention that underscores indicate
