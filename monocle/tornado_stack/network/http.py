@@ -17,9 +17,6 @@ class HttpException(Exception): pass
 HttpHeaders = ordereddict.OrderedDict
 
 class HttpClient(object):
-    DEFAULT_PORTS = {'http': 80,
-                     'https': 443}
-
     def __init__(self):
         self._proto = None
 

@@ -11,27 +11,32 @@ in older versions of Python.
 ## A Simple Example
 
 Here's a simple monocle program that runs two concurrent lightweight
-processes (called "o-routines") using Tornado's event loop:
+processes (called "o-routines") using Tornado's event loop.  One is an
+HTTP server, and the other makes an HTTP request:
 
     import monocle
     monocle.init("tornado")
+
     from monocle.stack import eventloop
-    from monocle.util import sleep
+    from monocle.stack.network import add_service
+    from monocle.stack.network.http import HttpClient, HttpHeaders, HttpServer, http_response
 
     @monocle.o
-    def seconds():
-        while True:
-            yield sleep(1)
-            print "1"
+    def hello_http(req):
+        content = "Hello, World!"
+        headers = HttpHeaders()
+        headers['Content-Length'] = len(content)
+        headers['Content-Type'] = 'text/plain'
+        http_response(req, 200, headers, content)
 
     @monocle.o
-    def minutes():
-        while True:
-            yield sleep(60)
-            print "60"
-            
-    monocle.launch(seconds)
-    monocle.launch(minutes)
+    def request():
+        client = HttpClient()
+	resp = yield client.request('http://127.0.0.1:8088/')
+        print resp.code, resp.body
+
+    add_service(HttpServer(hello_http, 8088))
+    monocle.launch(request)
     eventloop.run()
 
 ## @_o
@@ -42,10 +47,10 @@ you can don the monocle and use this handy shortcut for `@monocle.o`:
     from monocle import _o
 
     @_o
-    def seconds():
-        while True:
-            yield sleep(1)
-            print "1"
+    def request():
+        client = HttpClient()
+	resp = yield client.request('http://127.0.0.1:8088/')
+        print resp.code, resp.body
 
 It's true, this violates Python's convention that underscores indicate
 variables for internal use.  But rules are for breaking.  Live a
