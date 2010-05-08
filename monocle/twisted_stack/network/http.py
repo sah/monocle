@@ -136,7 +136,7 @@ class HttpServer(object):
 
 
 @_o
-def http_response(request, code, headers, content):
+def http_respond(request, code, headers, content):
     request.setResponseCode(code)
     request.setHeader('Server', 'monocle/%s' % VERSION)
     for name, value in headers.iteritems():

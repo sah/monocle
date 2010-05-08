@@ -19,7 +19,7 @@ HTTP server, and the other makes an HTTP request:
 
     from monocle.stack import eventloop
     from monocle.stack.network import add_service
-    from monocle.stack.network.http import HttpClient, HttpHeaders, HttpServer, http_response
+    from monocle.stack.network.http import HttpClient, HttpHeaders, HttpServer, http_respond
 
     @monocle.o
     def hello_http(req):
@@ -27,7 +27,7 @@ HTTP server, and the other makes an HTTP request:
         headers = HttpHeaders()
         headers['Content-Length'] = len(content)
         headers['Content-Type'] = 'text/plain'
-        yield http_response(req, 200, headers, content)
+        yield http_respond(req, 200, headers, content)
 
     @monocle.o
     def request():

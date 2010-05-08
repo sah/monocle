@@ -46,7 +46,7 @@ class HttpServer(object):
 
 
 @_o
-def http_response(request, code, headers, content):
+def http_respond(request, code, headers, content):
     request.write("HTTP/1.1 %s\r\n" % code)
     for name, value in headers.iteritems():
         request.write("%s: %s\r\n" % (name, value))
