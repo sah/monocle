@@ -11,6 +11,7 @@ class Deferred(object):
             self._callbacks.append(callback)
 
     def callback(self, result):
+        assert not hasattr(self, 'result')
         for cb in self._callbacks:
             cb(result)
         self.result = result
