@@ -45,6 +45,7 @@ class HttpServer(object):
         self._http_server.listen(self.port)
 
 
+@_o
 def http_response(request, code, headers, content):
     request.write("HTTP/1.1 %s\r\n" % code)
     for name, value in headers.iteritems():

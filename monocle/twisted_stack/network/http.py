@@ -135,6 +135,7 @@ class HttpServer(object):
         self.backlog = backlog
 
 
+@_o
 def http_response(request, code, headers, content):
     request.setResponseCode(code)
     request.setHeader('Server', 'monocle/%s' % VERSION)

@@ -27,7 +27,7 @@ HTTP server, and the other makes an HTTP request:
         headers = HttpHeaders()
         headers['Content-Length'] = len(content)
         headers['Content-Type'] = 'text/plain'
-        http_response(req, 200, headers, content)
+        yield http_response(req, 200, headers, content)
 
     @monocle.o
     def request():

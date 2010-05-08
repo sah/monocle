@@ -14,7 +14,7 @@ def hello_http(req):
     headers = HttpHeaders()
     headers['Content-Length'] = len(content)
     headers['Content-Type'] = 'text/plain'
-    http_response(req, 200, headers, content)
+    yield http_response(req, 200, headers, content)
 
 add_service(HttpServer(hello_http, 8088))
 eventloop.run()
