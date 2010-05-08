@@ -33,7 +33,7 @@ class HttpClient(object):
         df = Deferred()
         http_client.fetch(req, df.callback)
         response = yield df
-        yield (response.code, response.headers, response.body)
+        yield response
 
 
 class HttpServer(object):

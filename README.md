@@ -37,7 +37,7 @@ processes (called "o-routines") using Tornado's event loop:
 ## @_o
 
 It's important that code be dapper and well-dressed, so if you prefer,
-you can don the monocle and use this handy shortcut for monocle.o:
+you can don the monocle and use this handy shortcut for `@monocle.o`:
 
     from monocle import _o
 

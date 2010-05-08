@@ -14,9 +14,18 @@ from twisted.internet.protocol import ClientCreator
 from twisted.web.http import HTTPClient as TwistedHTTPClient
 from twisted.web import server, resource
 
+
 class HttpException(Exception): pass
 
-HttpHeaders = ordereddict.OrderedDict
+class HttpHeaders(ordereddict.OrderedDict): pass
+
+
+class HttpResponse(object):
+    def __init__(self, code, headers, body):
+        self.code = code
+        self.headers = headers
+        self.body = body
+
 
 class _HttpClient(TwistedHTTPClient):
     def __init__(self):
@@ -39,7 +48,7 @@ class _HttpClient(TwistedHTTPClient):
         self.headers[name] = value
 
     def handleResponse(self, data):
-        self.response_df.callback((self.code, self.headers, data))
+        self.response_df.callback(HttpResponse(self.code, self.headers, data))
 
     def close(self):
         if self.transport:
@@ -119,10 +128,11 @@ class _HttpServerResource(resource.Resource):
 
 
 class HttpServer(object):
-    def __init__(self, handler, port):
+    def __init__(self, handler, port, bindaddr="", backlog=128):
         self.factory = server.Site(_HttpServerResource(handler))
-        #self.factory.displayTracebacks = False
         self.port = port
+        self.bindaddr = bindaddr
+        self.backlog = backlog
 
 
 def http_response(request, code, headers, content):
