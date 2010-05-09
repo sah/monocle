@@ -57,7 +57,6 @@ monocle.init(sys.argv[1])
 
 from monocle.stack import eventloop
 from monocle.experimental import Channel
-from functools import partial
 
 # Send the sequence 2, 3, 4, ... to channel 'ch'.
 @_o
