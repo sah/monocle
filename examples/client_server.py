@@ -30,5 +30,5 @@ def do_echos():
         eventloop.halt()
 
 add_service(Service(handle_echo, port=8000))
-monocle.launch(do_echos)
+monocle.launch(do_echos())
 eventloop.run()

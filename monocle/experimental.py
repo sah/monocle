@@ -4,7 +4,7 @@
 
 from collections import deque
 from deferred import Deferred
-from monocle.eventloop import queue_task
+from monocle.stack.eventloop import queue_task
 from monocle import _o
 
 
