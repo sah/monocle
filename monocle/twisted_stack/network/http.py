@@ -3,7 +3,11 @@
 # by Steven Hazel
 
 import urlparse
-import ordereddict
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 from monocle import _o, VERSION
 from monocle.deferred import Deferred
@@ -17,7 +21,7 @@ from twisted.web import server, resource
 
 class HttpException(Exception): pass
 
-class HttpHeaders(ordereddict.OrderedDict): pass
+class HttpHeaders(OrderedDict): pass
 
 
 class HttpResponse(object):
@@ -34,7 +38,7 @@ class _HttpClient(TwistedHTTPClient):
         except AttributeError:
             pass
         self.code = None
-        self.headers = ordereddict.OrderedDict()
+        self.headers = OrderedDict()
         self.connect_df = Deferred()
         self.response_df = Deferred()
 
@@ -68,7 +72,7 @@ class HttpClient(object):
         return self._HEADER_NORMS.get(name.lower(), name)
 
     def _normalize_headers(self, headers):
-        return ordereddict.OrderedDict(
+        return OrderedDict(
             ((self._normalize_header_name(key), value)
              for key, value in headers.iteritems()))
 
@@ -96,7 +100,7 @@ class HttpClient(object):
         path = '/' + url.split('/', 3)[3]
 
         if not headers:
-            headers = ordereddict.OrderedDict()
+            headers = OrderedDict()
         headers = self._normalize_headers(headers)
         headers.setdefault('User-Agent', 'monocle/%s' % VERSION)
         headers.setdefault('Host', host)

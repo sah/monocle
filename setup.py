@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+import sys
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
 
 from monocle import VERSION
+
+install_requires = []
+if sys.version_info < (2, 7):
+    install_requires.append('ordereddict')
 
 setup(name="monocle",
       version=VERSION,
@@ -23,5 +28,6 @@ setup(name="monocle",
                 'monocle.tornado_stack.network',
                 'monocle.asyncore_stack',
                 'monocle.asyncore_stack.network'],
+      install_requires=install_requires,
       license='MIT'
       )

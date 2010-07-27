@@ -3,7 +3,11 @@
 # by Steven Hazel
 
 import urlparse
-import ordereddict
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 import tornado.httpclient
 import tornado.httpserver
@@ -14,7 +18,7 @@ from monocle.deferred import Deferred
 
 class HttpException(Exception): pass
 
-HttpHeaders = ordereddict.OrderedDict
+HttpHeaders = OrderedDict
 
 class HttpClient(object):
     def __init__(self):
