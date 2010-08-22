@@ -1,7 +1,7 @@
 import sys
 
 import core
-from core import _o, o, launch
+from core import _o, o, launch, Return, InvalidYieldException
 
 VERSION = '0.3'
 

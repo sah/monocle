@@ -15,7 +15,7 @@ from monocle.twisted_stack.eventloop import reactor
 import twisted.internet.error
 from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
 
-from monocle import _o
+from monocle import _o, Return
 from monocle.deferred import Deferred
 
 
@@ -39,7 +39,9 @@ class _Connection(Protocol):
     def dataReceived(self, data):
         self.transport.pauseProducing()
         self.buffer += data
-        self.drd.callback(self.buffer)
+        drd = self.drd
+        self.drd = Deferred()
+        drd.callback(self.buffer)
 
     def resume(self):
         # resumeProducing throws an AssertionError if the following
@@ -48,7 +50,6 @@ class _Connection(Protocol):
         # for us.
         if self.transport.connected and not self.transport.disconnecting:
             self.transport.resumeProducing()
-        self.drd = Deferred()
 
     def connectionLost(self, reason):
         self.drd.callback(reason.value)
@@ -65,7 +66,7 @@ class Connection(object):
             yield self._proto.drd
         tmp = self._proto.buffer[:size]
         self._proto.buffer = self._proto.buffer[size:]
-        yield tmp
+        yield Return(tmp)
 
     @_o
     def read_until(self, s):
@@ -73,7 +74,7 @@ class Connection(object):
             self._proto.resume()
             yield self._proto.drd
         tmp, self._proto.buffer = self._proto.buffer.split(s, 1)
-        yield (tmp + s)
+        yield Return(tmp + s)
 
     def readline(self):
         return self.read_until("\n")

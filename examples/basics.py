@@ -1,14 +1,19 @@
 import monocle
+from monocle import Return, InvalidYieldException
 
 @monocle.o
 def square(x):
-    yield x*x
+    yield Return(x*x)
     print "not reached"
 
 @monocle.o
 def fail():
     raise Exception("boo")
     print (yield square(2))
+
+@monocle.o
+def invalid_yield():
+    yield "this should fail"
 
 @monocle.o
 def main():
@@ -19,4 +24,11 @@ def main():
     except Exception, e:
         print "Caught exception:", type(e), str(e)
 
-main()
+    try:
+        yield invalid_yield()
+    except InvalidYieldException, e:
+        print "Caught exception:", type(e), str(e)
+    else:
+        assert False
+
+monocle.launch(main())

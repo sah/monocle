@@ -5,7 +5,7 @@
 from collections import deque
 from deferred import Deferred
 from monocle.stack.eventloop import queue_task
-from monocle import _o
+from monocle import _o, Return
 
 
 # Go-style channels
@@ -52,7 +52,7 @@ class Channel(object):
 
         if not popped:
             value = yield wait_df
-        yield value
+        yield Return(value)
 
 
 # Some ideas from diesel:
@@ -72,7 +72,7 @@ def first_of(*a):
                 df.callback((i, result))
         d.add_callback(cb)
     x, r = yield df
-    yield [(True, r) if x == i else None for i in xrange(len(a))]
+    yield Return([(True, r) if x == i else None for i in xrange(len(a))])
 
 
 waits = {}
@@ -88,7 +88,7 @@ def fire(name, value):
 def wait(name):
     waits[name] = waits.get(name, Deferred())
     r = yield waits[name]
-    yield r
+    yield Return(r)
 
 
 # sequencing

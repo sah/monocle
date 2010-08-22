@@ -16,12 +16,24 @@ except ImportError:
     class TwistedDeferred: pass
 
 
+class Return(object):
+    def __init__(self, value=None):
+        self.value = value
+
+
+class InvalidYieldException(Exception):
+    pass
+
+
 def launch(df):
     def eb(e):
         if isinstance(e, Exception):
-            import traceback
-            import sys
-            traceback.print_exception(type(e), e, sys.exc_info()[2])
+            if hasattr(e, '_monocle'):
+                print format_tb(e)
+            else:
+                import traceback
+                import sys
+                traceback.print_exception(type(e), e, sys.exc_info()[2])
     df.add_callback(eb)
 
 
@@ -52,7 +64,7 @@ def _monocle_chain(to_gen, g, deferred):
                 from_gen = g.send(to_gen)
         except StopIteration:
             # "return" statement (or fell off the end of the generator)
-            from_gen = None
+            from_gen = Return()
         except Exception, e:
             tb = traceback.format_exc()
             if not hasattr(e, "_monocle"):
@@ -61,10 +73,13 @@ def _monocle_chain(to_gen, g, deferred):
             deferred.callback(e)
             return deferred
 
-        if not isinstance(from_gen,
-                          (Deferred, TwistedDeferred)):
-            deferred.callback(from_gen)
+        if isinstance(from_gen, Return):
+            deferred.callback(from_gen.value)
             return deferred
+        elif not isinstance(from_gen,
+                            (Deferred, TwistedDeferred)):
+            e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Deferred and Return types." % (from_gen, type(from_gen), g))
+            return _monocle_chain(e, g, deferred)
 
         state = {'waiting': True}
 

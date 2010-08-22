@@ -12,7 +12,7 @@ except ImportError:
 import tornado.httpclient
 import tornado.httpserver
 
-from monocle import _o, VERSION
+from monocle import _o, Return, VERSION
 from monocle.deferred import Deferred
 
 
@@ -34,7 +34,7 @@ class HttpClient(object):
         df = Deferred()
         http_client.fetch(req, df.callback)
         response = yield df
-        yield response
+        yield Return(response)
 
 
 class HttpServer(object):

@@ -7,7 +7,7 @@ import functools
 import socket
 import asyncore
 
-from monocle import _o
+from monocle import _o, Return
 from monocle.deferred import Deferred
 from monocle.asyncore_stack.eventloop import evlp
 
@@ -29,11 +29,12 @@ class _Connection(asyncore.dispatcher):
         if not self.paused:
             self.buffer += self.recv(8192)
             self.paused = True
-            self.drd.callback(self.buffer)
+            drd = self.drd
+            self.drd = Deferred()
+            drd.callback(self.buffer)
 
     def resume(self):
         self.paused = False
-        self.drd = Deferred()
 
     def handle_close(self):
         self.close()
@@ -48,8 +49,9 @@ class _Connection(asyncore.dispatcher):
             sent = self.send(self.wbuf)
             self.wbuf = self.wbuf[sent:]
         if self.dwd and not self.wbuf:
-            self.dwd.callback(None)
+            dwd = self.dwd
             self.dwd = None
+            dwd.callback(None)
 
 
 class Connection(object):
@@ -63,7 +65,7 @@ class Connection(object):
             yield self._dispatcher.drd
         tmp = self._dispatcher.buffer[:size]
         self._dispatcher.buffer = self._dispatcher.buffer[size:]
-        yield tmp
+        yield Return(tmp)
 
     @_o
     def read_until(self, s):
@@ -71,7 +73,7 @@ class Connection(object):
             self._dispatcher.resume()
             yield self._dispatcher.drd
         tmp, self._dispatcher.buffer = self._dispatcher.buffer.split(s, 1)
-        yield (tmp + s)
+        yield Return(tmp + s)
 
     def readline(self):
         return self.read_until("\n")

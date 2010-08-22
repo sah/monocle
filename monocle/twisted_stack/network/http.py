@@ -9,7 +9,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from monocle import _o, VERSION
+from monocle import _o, Return, VERSION
 from monocle.deferred import Deferred
 from monocle.twisted_stack.eventloop import reactor
 
@@ -117,7 +117,7 @@ class HttpClient(object):
         self._proto.close()
         self._proto = None
 
-        yield response
+        yield Return(response)
 
 
 class _HttpServerResource(resource.Resource):
