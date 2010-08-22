@@ -139,12 +139,14 @@ def _o(f):
     available. The generator will be sent the result of the Deferred with the
     'send' method on generators, or if the result was a failure, 'throw'.
 
-    Your coroutine-enabled generator will return a Deferred object, which
-    will result in the return value of the generator (or will fail with a
-    failure object if your generator raises an unhandled exception). Note that
-    you can't use "return result" to return a value; use "yield result"
-    instead. Falling off the end of the generator, or simply using "return"
-    will cause the Deferred to have a result of None.
+    Your coroutine-enabled generator will return a Deferred object,
+    which will result in the return value of the generator (or will
+    fail with a failure object if your generator raises an unhandled
+    exception). Note that you can't use "return result" to return a
+    value; use "yield Return(result)" instead. Falling off the end of
+    the generator, or simply using "return" will cause the Deferred to
+    have a result of None.  Yielding anything other and a Deferred or
+    a Return is not allowed, and will raise an exception.
 
     The Deferred returned from your generator will call back with an
     exception if your generator raised an exception::
@@ -154,7 +156,7 @@ def _o(f):
             result = yield makeSomeRequestResultingInDeferred()
             if result == 'foo':
                 # this will become the result of the Deferred
-                yield 'success'
+                yield Return('success')
             else:
                 # this too
                 raise Exception('fail')
