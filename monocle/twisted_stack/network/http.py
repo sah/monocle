@@ -104,6 +104,8 @@ class HttpClient(object):
         headers = self._normalize_headers(headers)
         headers.setdefault('User-Agent', 'monocle/%s' % VERSION)
         headers.setdefault('Host', host)
+        if body is not None:
+            headers.setdefault('Content-Length', str(len(body)))            
 
         if not self._proto or not self._proto.transport.connected:
             yield self.connect(host, port, scheme=parts.scheme)
@@ -112,6 +114,9 @@ class HttpClient(object):
         for k, v in headers.iteritems():
             self._proto.sendHeader(k, v)
         self._proto.endHeaders()
+        if body is not None:
+            self._proto.transport.write(body)
+
         response = yield self._proto.response_df
 
         self._proto.close()
