@@ -59,8 +59,8 @@ class HttpServer(object):
 @_o
 def http_respond(request, code, headers, content):
     request.write("HTTP/1.1 %s\r\n" % code)
-    headers['Server'] = headers.get('Server', 'monocle/%s' % VERSION)
-    headers['Content-Length'] = headers.get('Content-Length', len(content))
+    headers.setdefault('Server', 'monocle/%s' % VERSION)
+    headers.setdefault('Content-Length', str(len(content)))
     for name, value in headers.iteritems():
         request.write("%s: %s\r\n" % (name, value))
     request.write("\r\n")

@@ -154,7 +154,7 @@ class HttpServer(object):
 @_o
 def http_respond(request, code, headers, content):
     request.setResponseCode(code)
-    headers['Server'] = headers.get('Server', 'monocle/%s' % VERSION)
+    headers.setdefault('Server', 'monocle/%s' % VERSION)
     for name, value in headers.iteritems():
         request.setHeader(name, value)
     request.write(content)

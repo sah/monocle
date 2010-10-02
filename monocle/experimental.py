@@ -86,6 +86,6 @@ def fire(name, value):
 
 @_o
 def wait(name):
-    waits[name] = waits.get(name, Deferred())
+    waits.setdefault(name, Deferred())
     r = yield waits[name]
     yield Return(r)
