@@ -26,6 +26,7 @@ class InvalidYieldException(Exception):
 
 
 def launch(df):
+    df2 = Deferred()
     def eb(e):
         if isinstance(e, Exception):
             if hasattr(e, '_monocle'):
@@ -34,7 +35,9 @@ def launch(df):
                 import traceback
                 import sys
                 traceback.print_exception(type(e), e, sys.exc_info()[2])
+        df2.callback(e)
     df.add_callback(eb)
+    return df2
 
 
 def format_tb(e):

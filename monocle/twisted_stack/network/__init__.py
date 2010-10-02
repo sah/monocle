@@ -15,7 +15,7 @@ from monocle.twisted_stack.eventloop import reactor
 import twisted.internet.error
 from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
 
-from monocle import _o, Return
+from monocle import _o, Return, launch
 from monocle.deferred import Deferred
 
 
@@ -94,8 +94,10 @@ class Service(object):
         self.factory.protocol = _Connection
         @_o
         def _handler(s):
-            yield handler(s)
-            s.close()
+            try:
+                yield launch(handler(s))
+            finally:
+                s.close()
         self.factory.handler = _handler
         self.port = port
         self.bindaddr = bindaddr

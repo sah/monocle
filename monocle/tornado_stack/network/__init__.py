@@ -9,7 +9,7 @@ import socket
 import tornado.ioloop
 import tornado.iostream
 
-from monocle import _o
+from monocle import _o, launch
 from monocle.deferred import Deferred
 from monocle.tornado_stack.eventloop import evlp
 
@@ -46,8 +46,10 @@ class Service(object):
     def __init__(self, handler, port, bindaddr="", backlog=128):
         @_o
         def _handler(s):
-            yield handler(s)
-            s.close()
+            try:
+                yield launch(handler(s))
+            finally:
+                s.close()
         self.handler = _handler
         self.port = port
         self.bindaddr = bindaddr

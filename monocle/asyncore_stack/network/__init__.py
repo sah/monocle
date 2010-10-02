@@ -7,7 +7,7 @@ import functools
 import socket
 import asyncore
 
-from monocle import _o, Return
+from monocle import _o, Return, launch
 from monocle.deferred import Deferred
 from monocle.asyncore_stack.eventloop import evlp
 
@@ -111,8 +111,10 @@ class Service(object):
     def __init__(self, handler, port, bindaddr="", backlog=128, evlp=evlp):
         @_o
         def _handler(s):
-            yield handler(s)
-            s.close()
+            try:
+                yield launch(handler(s))
+            finally:
+                s.close()
         self.handler = _handler
         self.evlp = evlp
         self.port = port
