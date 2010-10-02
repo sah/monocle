@@ -9,7 +9,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict
 
-from monocle import _o, Return, VERSION
+from monocle import _o, Return, VERSION, launch
 from monocle.deferred import Deferred
 from monocle.twisted_stack.eventloop import reactor
 
@@ -105,7 +105,7 @@ class HttpClient(object):
         headers.setdefault('User-Agent', 'monocle/%s' % VERSION)
         headers.setdefault('Host', host)
         if body is not None:
-            headers.setdefault('Content-Length', str(len(body)))            
+            headers.setdefault('Content-Length', str(len(body)))
 
         if not self._proto or not self._proto.transport.connected:
             yield self.connect(host, port, scheme=parts.scheme)
@@ -132,7 +132,14 @@ class _HttpServerResource(resource.Resource):
         self.handler = handler
 
     def render(self, request):
-        self.handler(request)
+        @_o
+        def _handler(request):
+            try:
+                yield launch(self.handler(request))
+            except:
+                yield http_respond(request, 500, {},
+                                   "500 Internal Server Error")
+        _handler(request)
         return server.NOT_DONE_YET
 
 
