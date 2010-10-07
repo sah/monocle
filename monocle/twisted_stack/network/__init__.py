@@ -2,90 +2,74 @@
 #
 # by Steven Hazel
 
-import os
-import sys
-import time
-import re
-import logging
-import logging.handlers
-from cgi import parse_qs
-from functools import partial
-
 from monocle.twisted_stack.eventloop import reactor
-import twisted.internet.error
 from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
 
 from monocle import _o, Return, launch
 from monocle.deferred import Deferred
+from monocle.stack.network import Connection, ConnectionLost
 
 
 class _Connection(Protocol):
-    def __init__(self):
-        try:
-            Protocol.__init__(self)
-        except AttributeError:
-            pass
-        self.buffer = ""
-        self.drd = Deferred()
+
+    def attach(self, connection):
+        self._write_flushed = connection._write_flushed
+        self._closed = connection._closed
 
     def connectionMade(self):
-        self.peer = self.transport.getPeer()
+        self.max_buffer_size = 104857600
+        self.buffer = ""
+        self.drd = None
         self.transport.pauseProducing()
-        try:
-            self.factory.handler(Connection(self))
-        except AttributeError:
-            pass
+        if hasattr(self, "factory"):
+            connection = Connection(self)
+            self.attach(connection)
+        self.transport.registerProducer(self, False)
+        if hasattr(self, "factory"):
+            self.factory.handler(connection)
 
     def dataReceived(self, data):
         self.transport.pauseProducing()
         self.buffer += data
+        if len(self.buffer) >= self.max_buffer_size:
+            # Reached maximum read buffer size
+            self.disconnect()
+            return
         drd = self.drd
-        self.drd = Deferred()
-        drd.callback(self.buffer)
-
-    def resume(self):
-        # resumeProducing throws an AssertionError if the following
-        # condition isn't met; the right thing to do is just not
-        # resume, because subsequent IO operations will have an error
-        # for us.
-        if self.transport.connected and not self.transport.disconnecting:
-            self.transport.resumeProducing()
+        self.drd = None
+        drd.callback(None)
 
     def connectionLost(self, reason):
-        self.drd.callback(reason.value)
+        self._closed(reason.value)
 
+    # functions to support IPullProducer
 
-class Connection(object):
-    def __init__(self, proto=None):
-        self._proto = proto
+    def resumeProducing(self):
+        if self._write_flushed:
+            self._write_flushed()
 
-    @_o
-    def read(self, size):
-        while len(self._proto.buffer) < size:
-            self._proto.resume()
-            yield self._proto.drd
-        tmp = self._proto.buffer[:size]
-        self._proto.buffer = self._proto.buffer[size:]
-        yield Return(tmp)
+    def stopProducing(self):
+        # we just wait for the connection lost event
+        pass
 
-    @_o
-    def read_until(self, s):
-        while not s in self._proto.buffer:
-            self._proto.resume()
-            yield self._proto.drd
-        tmp, self._proto.buffer = self._proto.buffer.split(s, 1)
-        yield Return(tmp + s)
+    # functions to support the StackConnection interface
 
-    def readline(self):
-        return self.read_until("\n")
-
-    @_o
     def write(self, data):
-        self._proto.transport.write(data)
+        self.transport.write(data)
 
-    def close(self):
-        if self._proto.transport:
-            self._proto.transport.loseConnection()
+    def resume(self):
+        self.drd = Deferred()
+        self.transport.resumeProducing()
+
+    def reading(self):
+        return self.drd is not None
+
+    def closed(self):
+        return not (self.transport.connected and not self.transport.disconnecting)
+
+    def disconnect(self):
+        if self.transport:
+            self.transport.loseConnection()
 
 
 class Service(object):
@@ -107,8 +91,10 @@ class Service(object):
 class Client(Connection):
     @_o
     def connect(self, host, port):
-        c = ClientCreator(reactor, _Connection)
-        self._proto = yield c.connectTCP(host, port)
+        self._stack_conn = _Connection()
+        self._stack_conn.attach(self)
+        c = ClientCreator(reactor, lambda: self._stack_conn)
+        yield c.connectTCP(host, port)
 
 
 def add_service(service):

@@ -2,99 +2,76 @@
 #
 # by Steven Hazel
 
-import errno
-import functools
 import socket
 import asyncore
 
 from monocle import _o, Return, launch
 from monocle.deferred import Deferred
+from monocle.stack.network import Connection, ConnectionLost
 from monocle.asyncore_stack.eventloop import evlp
 
 
-class _Connection(asyncore.dispatcher):
+class _Connection(asyncore.dispatcher_with_send):
     def __init__(self, sock=None, evlp=evlp):
-        asyncore.dispatcher.__init__(self, sock=sock, map=evlp._map)
-        self.paused = True
+        asyncore.dispatcher_with_send.__init__(self, sock=sock, map=evlp._map)
+        self.max_buffer_size = 104857600
         self.buffer = ""
-        self.wbuf = ""
-        self.drd = Deferred()
-        self.dwd = None
+        self.drd = None
         self.connect_df = Deferred()
 
-    def handle_connect(self):
-        self.connect_df.callback(None)
+    def attach(self, connection):
+        self._write_flushed = connection._write_flushed
+        self._closed = connection._closed
+
+    def readable(self):
+        return self.drd is not None
+
+    def handle_connect(self, reason=None):
+        df = self.connect_df
+        self.connect_df = None
+        df.callback(reason)
 
     def handle_read(self):
-        if not self.paused:
-            self.buffer += self.recv(8192)
-            self.paused = True
+        self.buffer += self.recv(8192)
+        if len(self.buffer) >= self.max_buffer_size:
+            # Reached maximum read buffer size
+            self.disconnect()
+            return
+        # it's possible recv called handle_close
+        if self.drd is not None:
             drd = self.drd
-            self.drd = Deferred()
-            drd.callback(self.buffer)
-
-    def resume(self):
-        self.paused = False
+            self.drd = None
+            drd.callback(None)
 
     def handle_close(self):
         self.close()
-        self.drd.callback(None)
+        # XXX: get a real reason from asyncore
+        reason = IOError("Connection closed")
+        if self.connect_df is not None:
+            self.handle_connect(reason)
+        self._closed(reason)
+
+    def initiate_send(self):
+        asyncore.dispatcher_with_send.initiate_send(self)
+        if len(self.out_buffer) == 0:
+            self._write_flushed()
+
+    # functions to support the StackConnection interface
 
     def write(self, data):
-        self.wbuf += data
-        self.dwd = Deferred()
+        self.send(data)
 
-    def handle_write(self):
-        if self.wbuf:
-            sent = self.send(self.wbuf)
-            self.wbuf = self.wbuf[sent:]
-        if self.dwd and not self.wbuf:
-            dwd = self.dwd
-            self.dwd = None
-            dwd.callback(None)
+    def resume(self):
+        self.drd = Deferred()
 
+    def reading(self):
+        return self.readable()
 
-class Connection(object):
-    def __init__(self, dispatcher=None):
-        self._dispatcher = dispatcher
+    def closed(self):
+        return not self.connected
 
-    @_o
-    def read(self, size):
-        while len(self._dispatcher.buffer) < size:
-            self._dispatcher.resume()
-            yield self._dispatcher.drd
-        tmp = self._dispatcher.buffer[:size]
-        self._dispatcher.buffer = self._dispatcher.buffer[size:]
-        yield Return(tmp)
-
-    @_o
-    def read_until(self, s):
-        while not s in self._dispatcher.buffer:
-            self._dispatcher.resume()
-            yield self._dispatcher.drd
-        tmp, self._dispatcher.buffer = self._dispatcher.buffer.split(s, 1)
-        yield Return(tmp + s)
-
-    def readline(self):
-        return self.read_until("\n")
-
-    @_o
-    def write(self, data):
-        self._dispatcher.write(data)
-        yield self._dispatcher.dwd
-
-    def close(self):
-        if self._dispatcher:
-            self._dispatcher.close()
-
-
-class Client(Connection):
-    @_o
-    def connect(self, host, port, evlp=evlp):
-        self._dispatcher = _Connection(evlp=evlp)
-        self._dispatcher.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._dispatcher.connect((host, port))
-        yield self._dispatcher.connect_df
+    def disconnect(self):
+        self.handle_close()
 
 
 class _ListeningConnection(asyncore.dispatcher):
@@ -104,7 +81,9 @@ class _ListeningConnection(asyncore.dispatcher):
 
     def handle_accept(self):
         (conn, addr) = self.accept()
-        self.handler(Connection(_Connection(sock=conn)))
+        connection = Connection(_Connection(sock=conn))
+        connection._stack_conn.attach(connection)
+        self.handler(connection)
 
 
 class Service(object):
@@ -123,6 +102,16 @@ class Service(object):
         self._conn = _ListeningConnection(self.handler, evlp=evlp)
         self._conn.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self._conn.set_reuse_addr()
+
+
+class Client(Connection):
+    @_o
+    def connect(self, host, port, evlp=evlp):
+        self._stack_conn = _Connection(evlp=evlp)
+        self._stack_conn.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._stack_conn.connect((host, port))
+        self._stack_conn.attach(self)
+        yield self._stack_conn.connect_df
 
 
 def add_service(service):

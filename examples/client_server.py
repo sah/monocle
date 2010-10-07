@@ -6,12 +6,15 @@ from monocle import _o
 monocle.init(sys.argv[1])
 
 from monocle.stack import eventloop
-from monocle.stack.network import add_service, Service, Client
+from monocle.stack.network import add_service, Service, Client, ConnectionLost
 
 @_o
 def handle_echo(conn):
     while True:
-        message = yield conn.read_until('\r\n')
+        try:
+            message = yield conn.read_until('\r\n')
+        except ConnectionLost:
+            break
         yield conn.write("you said: %s\r\n" % message.strip())
 
 @_o
@@ -27,6 +30,7 @@ def do_echos():
             assert echo_result.strip() == "you said: %s" % msg
         print '10000 loops in %.2fs' % (time.time() - t)
     finally:
+        client.close()
         eventloop.halt()
 
 add_service(Service(handle_echo, port=8000))
