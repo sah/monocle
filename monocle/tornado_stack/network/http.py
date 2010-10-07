@@ -13,7 +13,7 @@ import tornado.httpclient
 import tornado.httpserver
 
 from monocle import _o, Return, VERSION, launch
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 
 
 class HttpException(Exception): pass
@@ -31,9 +31,9 @@ class HttpClient(object):
                                              method=method,
                                              headers=headers or {},
                                              body=body)
-        df = Deferred()
-        http_client.fetch(req, df.callback)
-        response = yield df
+        cb = Callback()
+        http_client.fetch(req, cb.trigger)
+        response = yield cb
         yield Return(response)
 
 

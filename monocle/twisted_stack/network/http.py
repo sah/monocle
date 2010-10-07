@@ -10,7 +10,7 @@ except ImportError:
     from ordereddict import OrderedDict
 
 from monocle import _o, Return, VERSION, launch
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 from monocle.twisted_stack.eventloop import reactor
 
 from twisted.internet import ssl
@@ -39,11 +39,11 @@ class _HttpClient(TwistedHTTPClient):
             pass
         self.code = None
         self.headers = OrderedDict()
-        self.connect_df = Deferred()
-        self.response_df = Deferred()
+        self.connect_cb = Callback()
+        self.response_cb = Callback()
 
     def connectionMade(self):
-        self.connect_df.callback(None)
+        self.connect_cb.trigger(None)
 
     def handleStatus(self, protocol, code, message):
         self.code = code
@@ -52,7 +52,7 @@ class _HttpClient(TwistedHTTPClient):
         self.headers[name] = value
 
     def handleResponse(self, data):
-        self.response_df.callback(HttpResponse(self.code, self.headers, data))
+        self.response_cb.trigger(HttpResponse(self.code, self.headers, data))
 
     def close(self):
         if self.transport:
@@ -88,7 +88,7 @@ class HttpClient(object):
                                              ssl.ClientContextFactory())
         else:
             raise HttpException('unsupported url scheme %s' % scheme)
-        yield self._proto.connect_df
+        yield self._proto.connect_cb
 
     @_o
     def request(self, url, headers=None, method='GET', body=None):
@@ -117,7 +117,7 @@ class HttpClient(object):
         if body is not None:
             self._proto.transport.write(body)
 
-        response = yield self._proto.response_df
+        response = yield self._proto.response_cb
 
         self._proto.close()
         self._proto = None

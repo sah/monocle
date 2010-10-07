@@ -6,7 +6,7 @@ from monocle.twisted_stack.eventloop import reactor
 from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
 
 from monocle import _o, Return, launch
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 from monocle.stack.network import Connection, ConnectionLost
 
 
@@ -19,7 +19,7 @@ class _Connection(Protocol):
     def connectionMade(self):
         self.max_buffer_size = 104857600
         self.buffer = ""
-        self.drd = None
+        self.read_cb = None
         self.transport.pauseProducing()
         if hasattr(self, "factory"):
             connection = Connection(self)
@@ -35,9 +35,9 @@ class _Connection(Protocol):
             # Reached maximum read buffer size
             self.disconnect()
             return
-        drd = self.drd
-        self.drd = None
-        drd.callback(None)
+        read_cb = self.read_cb
+        self.read_cb = None
+        read_cb.trigger(None)
 
     def connectionLost(self, reason):
         self._closed(reason.value)
@@ -58,11 +58,11 @@ class _Connection(Protocol):
         self.transport.write(data)
 
     def resume(self):
-        self.drd = Deferred()
+        self.read_cb = Callback()
         self.transport.resumeProducing()
 
     def reading(self):
-        return self.drd is not None
+        return self.read_cb is not None
 
     def closed(self):
         return not (self.transport.connected and not self.transport.disconnecting)

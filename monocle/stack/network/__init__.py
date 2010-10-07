@@ -1,6 +1,6 @@
 import monocle
 from monocle import _o
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 
 
 class ConnectionLost(Exception):
@@ -11,7 +11,7 @@ class Connection(object):
     def __init__(self, stack_conn=None):
         self._stack_conn = stack_conn
         self.writing = False
-        self._flush_dfs = []
+        self._flush_cbs = []
 
     @_o
     def read(self, size):
@@ -19,7 +19,7 @@ class Connection(object):
         while len(self._stack_conn.buffer) < size:
             self._check_closed()
             self._stack_conn.resume()
-            yield self._stack_conn.drd
+            yield self._stack_conn.read_cb
         tmp = self._stack_conn.buffer[:size]
         self._stack_conn.buffer = self._stack_conn.buffer[size:]
         yield Return(tmp)
@@ -34,7 +34,7 @@ class Connection(object):
                 break
             self._check_closed()
             self._stack_conn.resume()
-            yield self._stack_conn.drd
+            yield self._stack_conn.read_cb
         tmp = self._stack_conn.buffer[:size]
         self._stack_conn.buffer = self._stack_conn.buffer[size:]
         yield Return(tmp)
@@ -50,27 +50,27 @@ class Connection(object):
 
     def _write_flushed(self, result=None):
         self.writing = False
-        dfs = self._flush_dfs
-        self._flush_dfs = []
-        for df in dfs:
-            df.callback(result)
+        cbs = self._flush_cbs
+        self._flush_cbs = []
+        for cb in cbs:
+            cb.trigger(result)
 
     def flush(self):
         self._check_closed()
-        df = Deferred()
-        self._flush_dfs.append(df)
+        cb = Callback()
+        self._flush_cbs.append(cb)
         if not self.writing:
             self._write_flushed()
-        return df
+        return cb
 
     def _closed(self, reason):
         cl = ConnectionLost(str(reason))
         cl.original = reason
         self._write_flushed(cl)
-        if self._stack_conn.drd:
-            df = self._stack_conn.drd
-            self._stack_conn.drd = None
-            df.callback(cl)
+        if self._stack_conn.read_cb:
+            cb = self._stack_conn.read_cb
+            self._stack_conn.read_cb = None
+            cb.trigger(cl)
 
     def close(self):
         self._stack_conn.disconnect()

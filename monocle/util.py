@@ -1,7 +1,7 @@
 from monocle.stack.eventloop import queue_task
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 
 def sleep(seconds):
-    d = Deferred()
-    queue_task(seconds, d.callback, None)
+    d = Callback()
+    queue_task(seconds, d.trigger, None)
     return d

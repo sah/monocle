@@ -6,7 +6,7 @@ import socket
 import asyncore
 
 from monocle import _o, Return, launch
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 from monocle.stack.network import Connection, ConnectionLost
 from monocle.asyncore_stack.eventloop import evlp
 
@@ -16,20 +16,20 @@ class _Connection(asyncore.dispatcher_with_send):
         asyncore.dispatcher_with_send.__init__(self, sock=sock, map=evlp._map)
         self.max_buffer_size = 104857600
         self.buffer = ""
-        self.drd = None
-        self.connect_df = Deferred()
+        self.read_cb = None
+        self.connect_cb = Callback()
 
     def attach(self, connection):
         self._write_flushed = connection._write_flushed
         self._closed = connection._closed
 
     def readable(self):
-        return self.drd is not None
+        return self.read_cb is not None
 
     def handle_connect(self, reason=None):
-        df = self.connect_df
-        self.connect_df = None
-        df.callback(reason)
+        cb = self.connect_cb
+        self.connect_cb = None
+        cb.trigger(reason)
 
     def handle_read(self):
         self.buffer += self.recv(8192)
@@ -38,16 +38,16 @@ class _Connection(asyncore.dispatcher_with_send):
             self.disconnect()
             return
         # it's possible recv called handle_close
-        if self.drd is not None:
-            drd = self.drd
-            self.drd = None
-            drd.callback(None)
+        if self.read_cb is not None:
+            read_cb = self.read_cb
+            self.read_cb = None
+            read_cb.trigger(None)
 
     def handle_close(self):
         self.close()
         # XXX: get a real reason from asyncore
         reason = IOError("Connection closed")
-        if self.connect_df is not None:
+        if self.connect_cb is not None:
             self.handle_connect(reason)
         self._closed(reason)
 
@@ -62,7 +62,7 @@ class _Connection(asyncore.dispatcher_with_send):
         self.send(data)
 
     def resume(self):
-        self.drd = Deferred()
+        self.read_cb = Callback()
 
     def reading(self):
         return self.readable()
@@ -111,7 +111,7 @@ class Client(Connection):
         self._stack_conn.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self._stack_conn.connect((host, port))
         self._stack_conn.attach(self)
-        yield self._stack_conn.connect_df
+        yield self._stack_conn.connect_cb
 
 
 def add_service(service):

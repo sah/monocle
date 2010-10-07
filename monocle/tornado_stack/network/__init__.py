@@ -9,7 +9,7 @@ import tornado.ioloop
 from tornado.iostream import IOStream
 
 from monocle import _o, launch
-from monocle.deferred import Deferred
+from monocle.callback import Callback
 from monocle.stack.network import Connection as BaseConnection
 from monocle.stack.network import ConnectionLost
 from monocle.tornado_stack.eventloop import evlp
@@ -21,33 +21,33 @@ class _Connection(IOStream):
         self.set_close_callback(self._close_called)
         self._write_flushed = connection._write_flushed
         self._closed = connection._closed
-        self.drd = None
-        self.connect_df = Deferred()
+        self.read_cb = None
+        self.connect_cb = Callback()
 
     def read(self, size):
-        df = Deferred()
-        self.drd = df
+        cb = Callback()
+        self.read_cb = cb
         IOStream.read_bytes(self, size, self._read_complete)
-        return df
+        return cb
 
     def read_until(self, s):
-        df = Deferred()
-        self.drd = df
+        cb = Callback()
+        self.read_cb = cb
         IOStream.read_until(self, s, self._read_complete)
-        return df
+        return cb
 
     def _read_complete(self, result):
-        df = self.drd
-        self.drd = None
-        df.callback(result)
+        cb = self.read_cb
+        self.read_cb = None
+        cb.trigger(result)
 
     def _handle_connect(self, reason=None):
-        df = self.connect_df
-        self.connect_df = None
-        df.callback(reason)
+        cb = self.connect_cb
+        self.connect_cb = None
+        cb.trigger(reason)
 
     def _handle_events(self, fd, events):
-        if self.connect_df:
+        if self.connect_cb:
             self._handle_connect(None)
         IOStream._handle_events(self, fd, events)
 
@@ -55,7 +55,7 @@ class _Connection(IOStream):
         # XXX: get a real reason from Tornado
         if reason is None:
             reason = IOError("Connection closed")
-        if self.connect_df is not None:
+        if self.connect_cb is not None:
             self._handle_connect(reason)
         self._closed(reason)
 
@@ -127,7 +127,7 @@ class Client(Connection):
         if err in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK):
             self._stack_conn._add_io_state(self._stack_conn.io_loop.READ)
             self._stack_conn._add_io_state(self._stack_conn.io_loop.WRITE)
-            yield self._stack_conn.connect_df
+            yield self._stack_conn.connect_cb
         elif err not in (0, errno.EISCONN):
             raise socket.error(err, errorcode[err])
 

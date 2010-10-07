@@ -4,7 +4,7 @@ import sys
 import types
 import traceback
 
-from deferred import Deferred, defer
+from callback import Callback, defer
 
 from twisted_utils import mergeFunctionMetadata
 
@@ -25,8 +25,8 @@ class InvalidYieldException(Exception):
     pass
 
 
-def launch(df):
-    df2 = Deferred()
+def launch(cb):
+    cb2 = Callback()
     def eb(e):
         if isinstance(e, Exception):
             if hasattr(e, '_monocle'):
@@ -35,9 +35,9 @@ def launch(df):
                 import traceback
                 import sys
                 traceback.print_exception(type(e), e, sys.exc_info()[2])
-        df2.callback(e)
-    df.add_callback(eb)
-    return df2
+        cb2.trigger(e)
+    cb.register(eb)
+    return cb2
 
 
 def format_tb(e):
@@ -50,9 +50,9 @@ def format_tb(e):
     return first + s + "\n" + last
 
 
-def _monocle_chain(to_gen, g, deferred):
+def _monocle_chain(to_gen, g, callback):
     # This function is complicated by the need to prevent unbounded recursion
-    # arising from repeatedly yielding immediately ready deferreds.  This while
+    # arising from repeatedly yielding immediately ready callbacks.  This while
     # loop and the state variable solve that by manually unfolding the
     # recursion.
 
@@ -73,41 +73,41 @@ def _monocle_chain(to_gen, g, deferred):
             if not hasattr(e, "_monocle"):
                 e._monocle = {'tracebacks': []}
             e._monocle['tracebacks'].append(tb)
-            deferred.callback(e)
-            return deferred
+            callback.trigger(e)
+            return callback
 
         if isinstance(from_gen, Return):
-            deferred.callback(from_gen.value)
-            return deferred
+            callback.trigger(from_gen.value)
+            return callback
         elif not isinstance(from_gen,
-                            (Deferred, TwistedDeferred)):
-            e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Deferred and Return types." % (from_gen, type(from_gen), g))
-            return _monocle_chain(e, g, deferred)
+                            (Callback, TwistedDeferred)):
+            e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Callback and Return types." % (from_gen, type(from_gen), g))
+            return _monocle_chain(e, g, callback)
 
         state = {'waiting': True}
 
-        # a deferred was yielded, get the result.
+        # a callback was yielded, get the result.
         def gotResult(r):
             if state['waiting']:
                 state['waiting'] = False
                 state['result'] = r
             else:
-                _monocle_chain(r, g, deferred)
+                _monocle_chain(r, g, callback)
         if isinstance(from_gen, TwistedDeferred):
             from_gen.addBoth(gotResult)
         else:
-            from_gen.add_callback(gotResult)
+            from_gen.register(gotResult)
 
         if state['waiting']:
             # Haven't called back yet, set flag so that we get reinvoked
             # and return from the loop
             state['waiting'] = False
-            return deferred
+            return callback
 
         to_gen = state['result']
 
 
-def maybeDeferredGenerator(f, *args, **kw):
+def maybeCallbackGenerator(f, *args, **kw):
     try:
         result = f(*args, **kw)
     except Exception, e:
@@ -118,8 +118,8 @@ def maybeDeferredGenerator(f, *args, **kw):
         return defer(e)
 
     if isinstance(result, types.GeneratorType):
-        return _monocle_chain(None, result, Deferred())
-    elif isinstance(result, Deferred):
+        return _monocle_chain(None, result, Callback())
+    elif isinstance(result, Callback):
         return result
     elif isinstance(result, TwistedDeferred):
         return result  # FIXME -- convert
@@ -129,43 +129,43 @@ def maybeDeferredGenerator(f, *args, **kw):
 # @_o
 def _o(f):
     """
-    monocle helps you write Deferred-using code that looks like a regular
+    monocle helps you write Callback-using code that looks like a regular
     sequential function.  For example::
 
         @_o
         def foo():
-            result = yield makeSomeRequestResultingInDeferred()
+            result = yield makeSomeRequestResultingInCallback()
             print result
 
-    When you call anything that results in a Deferred, you can simply yield it;
-    your generator will automatically be resumed when the Deferred's result is
-    available. The generator will be sent the result of the Deferred with the
+    When you call anything that results in a Callback, you can simply yield it;
+    your generator will automatically be resumed when the Callback's result is
+    available. The generator will be sent the result of the Callback with the
     'send' method on generators, or if the result was a failure, 'throw'.
 
-    Your coroutine-enabled generator will return a Deferred object,
+    Your coroutine-enabled generator will return a Callback object,
     which will result in the return value of the generator (or will
     fail with a failure object if your generator raises an unhandled
     exception). Note that you can't use "return result" to return a
     value; use "yield Return(result)" instead. Falling off the end of
-    the generator, or simply using "return" will cause the Deferred to
-    have a result of None.  Yielding anything other and a Deferred or
+    the generator, or simply using "return" will cause the Callback to
+    have a result of None.  Yielding anything other and a Callback or
     a Return is not allowed, and will raise an exception.
 
-    The Deferred returned from your generator will call back with an
+    The Callback returned from your generator will call back with an
     exception if your generator raised an exception::
 
         @_o
         def foo():
-            result = yield makeSomeRequestResultingInDeferred()
+            result = yield makeSomeRequestResultingInCallback()
             if result == 'foo':
-                # this will become the result of the Deferred
+                # this will become the result of the Callback
                 yield Return('success')
             else:
                 # this too
                 raise Exception('fail')
     """
     def unwindGenerator(*args, **kwargs):
-        return maybeDeferredGenerator(f, *args, **kwargs)
+        return maybeCallbackGenerator(f, *args, **kwargs)
     return mergeFunctionMetadata(f, unwindGenerator)
 
 o = _o
