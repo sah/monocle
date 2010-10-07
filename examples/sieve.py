@@ -63,7 +63,7 @@ from monocle.experimental import Channel
 def generate(ch):
     i = 2
     while True:
-        yield ch.fire(i)  # Send 'i' to channel 'ch'.
+        yield ch.send(i)  # Send 'i' to channel 'ch'.
         i += 1
 
 # Copy the values from channel 'inc' to channel 'outc',
@@ -71,9 +71,9 @@ def generate(ch):
 @_o
 def filter(inc, outc, prime):
     while True:
-        i = yield inc.wait()  # Receive value of new variable 'i' from 'in'.
+        i = yield inc.recv()  # Receive value of new variable 'i' from 'in'.
         if i % prime != 0:
-            yield outc.fire(i)  # Send 'i' to channel 'outc'.
+            yield outc.send(i)  # Send 'i' to channel 'outc'.
 
 # The prime sieve: Daisy-chain filter processes together.
 @_o
@@ -81,7 +81,7 @@ def main():
     ch = Channel()  # Create a new channel.
     monocle.launch(generate(ch))  # Start generate() as an o-routine.
     while True:
-        prime = yield ch.wait()
+        prime = yield ch.recv()
         print prime
         ch1 = Channel()
         filter(ch, ch1, prime)

@@ -13,11 +13,11 @@ def main():
     ch = Channel(s)
     for i in xrange(s):
         print i
-        yield ch.fire(i)
+        yield ch.send(i)
 
     print ch.bufsize, len(ch._msgs)
     for i in xrange(s):
-        print (yield ch.wait())
+        print (yield ch.recv())
     print "done"
 
 monocle.launch(main())
