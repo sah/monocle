@@ -53,7 +53,7 @@ class Connection(object):
         cbs = self._flush_cbs
         self._flush_cbs = []
         for cb in cbs:
-            cb.trigger(result)
+            cb(result)
 
     def flush(self):
         self._check_closed()
@@ -70,7 +70,7 @@ class Connection(object):
         if self._stack_conn.read_cb:
             cb = self._stack_conn.read_cb
             self._stack_conn.read_cb = None
-            cb.trigger(cl)
+            cb(cl)
 
     def close(self):
         self._stack_conn.disconnect()

@@ -39,12 +39,12 @@ class _Connection(IOStream):
     def _read_complete(self, result):
         cb = self.read_cb
         self.read_cb = None
-        cb.trigger(result)
+        cb(result)
 
     def _handle_connect(self, reason=None):
         cb = self.connect_cb
         self.connect_cb = None
-        cb.trigger(reason)
+        cb(reason)
 
     def _handle_events(self, fd, events):
         if self.connect_cb:

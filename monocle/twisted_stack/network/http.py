@@ -43,7 +43,7 @@ class _HttpClient(TwistedHTTPClient):
         self.response_cb = Callback()
 
     def connectionMade(self):
-        self.connect_cb.trigger(None)
+        self.connect_cb(None)
 
     def handleStatus(self, protocol, code, message):
         self.code = code
@@ -52,7 +52,7 @@ class _HttpClient(TwistedHTTPClient):
         self.headers[name] = value
 
     def handleResponse(self, data):
-        self.response_cb.trigger(HttpResponse(self.code, self.headers, data))
+        self.response_cb(HttpResponse(self.code, self.headers, data))
 
     def close(self):
         if self.transport:

@@ -32,7 +32,7 @@ class Channel(object):
         assert(len(self._msgs) == 0)
         cb = self._recv_cb
         self._recv_cb = None
-        queue_task(0, cb.trigger, value)
+        queue_task(0, cb, value)
 
     @_o
     def recv(self):
@@ -48,7 +48,7 @@ class Channel(object):
         if self._send_cb:
             cb = self._send_cb
             self._send_cb = None
-            queue_task(0, cb.trigger, None)
+            queue_task(0, cb, None)
 
         if not popped:
             value = yield recv_cb
@@ -69,7 +69,7 @@ def first_of(*a):
                 raise result
             if not cb.called:
                 cb.called = True
-                cb.trigger((i, result))
+                cb((i, result))
         d.register(cb)
     x, r = yield cb
     yield Return([(True, r) if x == i else None for i in xrange(len(a))])
@@ -82,7 +82,7 @@ def fire(name, value):
     if name in waits:
         cb = waits[name]
         waits.pop(name)
-        cb.trigger(value)
+        cb(value)
 
 @_o
 def wait(name):

@@ -37,7 +37,7 @@ class _Connection(Protocol):
             return
         read_cb = self.read_cb
         self.read_cb = None
-        read_cb.trigger(None)
+        read_cb(None)
 
     def connectionLost(self, reason):
         self._closed(reason.value)

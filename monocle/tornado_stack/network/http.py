@@ -32,7 +32,7 @@ class HttpClient(object):
                                              headers=headers or {},
                                              body=body)
         cb = Callback()
-        http_client.fetch(req, cb.trigger)
+        http_client.fetch(req, cb)
         response = yield cb
         yield Return(response)
 

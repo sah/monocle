@@ -29,7 +29,7 @@ class _Connection(asyncore.dispatcher_with_send):
     def handle_connect(self, reason=None):
         cb = self.connect_cb
         self.connect_cb = None
-        cb.trigger(reason)
+        cb(reason)
 
     def handle_read(self):
         self.buffer += self.recv(8192)
@@ -41,7 +41,7 @@ class _Connection(asyncore.dispatcher_with_send):
         if self.read_cb is not None:
             read_cb = self.read_cb
             self.read_cb = None
-            read_cb.trigger(None)
+            read_cb(None)
 
     def handle_close(self):
         self.close()

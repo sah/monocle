@@ -3,5 +3,5 @@ from monocle.callback import Callback
 
 def sleep(seconds):
     cb = Callback()
-    queue_task(seconds, cb.trigger, None)
+    queue_task(seconds, cb, None)
     return cb

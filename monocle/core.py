@@ -35,7 +35,7 @@ def launch(cb):
                 import traceback
                 import sys
                 traceback.print_exception(type(e), e, sys.exc_info()[2])
-        cb2.trigger(e)
+        cb2(e)
     cb.register(eb)
     return cb2
 
@@ -73,11 +73,11 @@ def _monocle_chain(to_gen, g, callback):
             if not hasattr(e, "_monocle"):
                 e._monocle = {'tracebacks': []}
             e._monocle['tracebacks'].append(tb)
-            callback.trigger(e)
+            callback(e)
             return callback
 
         if isinstance(from_gen, Return):
-            callback.trigger(from_gen.value)
+            callback(from_gen.value)
             return callback
         elif not isinstance(from_gen,
                             (Callback, TwistedDeferred)):

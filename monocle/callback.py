@@ -10,8 +10,8 @@ class Callback(object):
         else:
             self._handlers.append(handler)
 
-    def trigger(self, result):
-        assert not hasattr(self, 'result'), "Already triggered"
+    def __call__(self, result):
+        assert not hasattr(self, 'result'), "Already called back"
         for handler in self._handlers:
             handler(result)
         self.result = result
