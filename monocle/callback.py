@@ -4,7 +4,7 @@ class Callback(object):
     def __init__(self):
         self._handlers = []
 
-    def register(self, handler):
+    def add(self, handler):
         if hasattr(self, 'result'):
             handler(self.result)
         else:

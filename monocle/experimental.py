@@ -63,14 +63,14 @@ class Channel(object):
 def first_of(*a):
     cb = Callback()
     cb.called = False
-    for i, d in enumerate(a):
+    for i, c in enumerate(a):
         def cb(result, i=i):
             if isinstance(result, Exception):
                 raise result
             if not cb.called:
                 cb.called = True
                 cb((i, result))
-        d.register(cb)
+        c.add(cb)
     x, r = yield cb
     yield Return([(True, r) if x == i else None for i in xrange(len(a))])
 

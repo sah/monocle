@@ -36,7 +36,7 @@ def launch(cb):
                 import sys
                 traceback.print_exception(type(e), e, sys.exc_info()[2])
         cb2(e)
-    cb.register(eb)
+    cb.add(eb)
     return cb2
 
 
@@ -96,7 +96,7 @@ def _monocle_chain(to_gen, g, callback):
         if isinstance(from_gen, TwistedDeferred):
             from_gen.addBoth(gotResult)
         else:
-            from_gen.register(gotResult)
+            from_gen.add(gotResult)
 
         if state['waiting']:
             # Haven't called back yet, set flag so that we get reinvoked
