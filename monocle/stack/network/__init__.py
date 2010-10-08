@@ -11,7 +11,7 @@ class Connection(object):
     def __init__(self, stack_conn=None):
         self._stack_conn = stack_conn
         self.writing = False
-        self._flush_cbs = []
+        self._flush_cb = Callback()
 
     @_o
     def read(self, size):
@@ -50,15 +50,13 @@ class Connection(object):
 
     def _write_flushed(self, result=None):
         self.writing = False
-        cbs = self._flush_cbs
-        self._flush_cbs = []
-        for cb in cbs:
-            cb(result)
+        cb = self._flush_cb
+        self._flush_cb = Callback()
+        cb(result)
 
     def flush(self):
         self._check_closed()
-        cb = Callback()
-        self._flush_cbs.append(cb)
+        cb = self._flush_cb
         if not self.writing:
             self._write_flushed()
         return cb
