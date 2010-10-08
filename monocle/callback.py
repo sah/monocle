@@ -19,5 +19,5 @@ class Callback(object):
 
 def defer(result):
     cb = Callback()
-    cb.result = result
+    cb(result)
     return cb
