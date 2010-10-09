@@ -129,7 +129,7 @@ class Client(Connection):
             self._stack_conn._add_io_state(self._stack_conn.io_loop.WRITE)
             yield self._stack_conn.connect_cb
         elif err not in (0, errno.EISCONN):
-            raise socket.error(err, errorcode[err])
+            raise socket.error(err, errno.errorcode[err])
 
 
 def add_service(service, evlp=evlp):
