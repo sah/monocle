@@ -79,7 +79,7 @@ class Service(object):
         @_o
         def _handler(s):
             try:
-                yield launch(handler(s))
+                yield launch(handler, s)
             finally:
                 s.close()
         self.factory.handler = _handler

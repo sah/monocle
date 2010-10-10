@@ -31,4 +31,4 @@ def main():
     else:
         assert False
 
-monocle.launch(main())
+monocle.launch(main)

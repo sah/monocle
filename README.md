@@ -37,7 +37,7 @@ HTTP server, and the other makes an HTTP request:
         print resp.code, resp.body
 
     add_service(HttpServer(hello_http, 8088))
-    monocle.launch(request())
+    monocle.launch(request)
     eventloop.run()
 
 ## @_o

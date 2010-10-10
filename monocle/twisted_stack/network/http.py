@@ -135,7 +135,7 @@ class _HttpServerResource(resource.Resource):
         @_o
         def _handler(request):
             try:
-                yield launch(self.handler(request))
+                yield launch(self.handler, request)
             except:
                 yield http_respond(request, 500, {},
                                    "500 Internal Server Error")

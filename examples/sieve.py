@@ -79,7 +79,7 @@ def filter(inc, outc, prime):
 @_o
 def main():
     ch = Channel()  # Create a new channel.
-    monocle.launch(generate(ch))  # Start generate() as an o-routine.
+    monocle.launch(generate, ch)  # Start generate() as an o-routine.
     while True:
         prime = yield ch.recv()
         print prime
@@ -87,5 +87,5 @@ def main():
         filter(ch, ch1, prime)
         ch = ch1
 
-monocle.launch(main())
+monocle.launch(main)
 eventloop.run()

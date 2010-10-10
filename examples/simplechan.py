@@ -20,5 +20,5 @@ def main():
         print (yield ch.recv())
     print "done"
 
-monocle.launch(main())
+monocle.launch(main)
 eventloop.run()

@@ -20,6 +20,6 @@ def print_every_two_seconds():
         yield sleep(2)
     eventloop.halt()
 
-monocle.launch(print_every_second())
-monocle.launch(print_every_two_seconds())
+monocle.launch(print_every_second)
+monocle.launch(print_every_two_seconds)
 eventloop.run()

@@ -16,5 +16,5 @@ def req():
     finally:
         eventloop.halt()
 
-monocle.launch(req())
+monocle.launch(req)
 eventloop.run()

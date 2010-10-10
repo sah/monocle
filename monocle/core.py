@@ -25,21 +25,6 @@ class InvalidYieldException(Exception):
     pass
 
 
-def launch(cb):
-    cb2 = Callback()
-    def eb(e):
-        if isinstance(e, Exception):
-            if hasattr(e, '_monocle'):
-                print format_tb(e)
-            else:
-                import traceback
-                import sys
-                traceback.print_exception(type(e), e, sys.exc_info()[2])
-        cb2(e)
-    cb.add(eb)
-    return cb2
-
-
 def format_tb(e):
     s = ""
     for tb in reversed(e._monocle['tracebacks']):
@@ -167,5 +152,16 @@ def _o(f):
     def unwindGenerator(*args, **kwargs):
         return maybeCallbackGenerator(f, *args, **kwargs)
     return mergeFunctionMetadata(f, unwindGenerator)
-
 o = _o
+
+@_o
+def launch(oroutine, *args, **kwargs):
+    r = yield oroutine(*args, **kwargs)
+    if isinstance(r, Exception):
+        if hasattr(r, '_monocle'):
+            print format_tb(r)
+        else:
+            import traceback
+            import sys
+            traceback.print_exception(type(r), r, sys.exc_info()[2])
+    yield Return(r)
