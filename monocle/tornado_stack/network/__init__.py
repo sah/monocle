@@ -46,10 +46,10 @@ class _Connection(IOStream):
         self.connect_cb = None
         cb(reason)
 
-    def _handle_events(self, fd, events):
+    def _handle_write(self):
         if self.connect_cb:
             self._handle_connect(None)
-        IOStream._handle_events(self, fd, events)
+        IOStream._handle_write(self)
 
     def _close_called(self, reason=None):
         # XXX: get a real reason from Tornado
@@ -122,14 +122,13 @@ class Client(Connection):
         s = socket.socket()
         self._stack_conn = _Connection(s)
         self._stack_conn.attach(self)
-
-        err = s.connect_ex((host, port))
-        if err in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK):
-            self._stack_conn._add_io_state(self._stack_conn.io_loop.READ)
-            self._stack_conn._add_io_state(self._stack_conn.io_loop.WRITE)
-            yield self._stack_conn.connect_cb
-        elif err not in (0, errno.EISCONN):
-            raise socket.error(err, errno.errorcode[err])
+        try:
+            s.connect((host, port))
+        except socket.error, e:
+            if e.errno not in (errno.EINPROGRESS, errno.EWOULDBLOCK):
+                raise
+        self._stack_conn._add_io_state(self._stack_conn.io_loop.WRITE)
+        yield self._stack_conn.connect_cb
 
 
 def add_service(service, evlp=evlp):
