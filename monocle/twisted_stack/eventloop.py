@@ -1,25 +1,28 @@
 import sys
 import functools
 
+from monocle import launch
+
 # prefer fast reactors
 # FIXME: this should optionally refuse to use slow ones
-try:
-    from twisted.internet import epollreactor
-    epollreactor.install()
-except:
+if not "twisted.internet.reactor" in sys.modules:
     try:
-        from twisted.internet import kqreactor
-        kqreactor.install()
+        from twisted.internet import epollreactor
+        epollreactor.install()
     except:
         try:
-            from twisted.internet import iocpreactor
-            iocpreactor.install()
+            from twisted.internet import kqreactor
+            kqreactor.install()
         except:
             try:
-                from twisted.internet import pollreactor
-                pollreactor.install()
+                from twisted.internet import iocpreactor
+                iocpreactor.install()
             except:
-                pass
+                try:
+                    from twisted.internet import pollreactor
+                    pollreactor.install()
+                except:
+                    pass
 
 from twisted.internet import reactor
 from twisted.internet.error import ReactorNotRunning
@@ -41,7 +44,7 @@ class EventLoop(object):
         self._halted = False
 
     def queue_task(self, delay, callable, *args, **kw):
-        return reactor.callLater(delay, callable, *args, **kw)
+        return reactor.callLater(delay, launch, callable, *args, **kw)
 
     def run(self):
         if not self._halted:

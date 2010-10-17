@@ -17,8 +17,14 @@ except ImportError:
 
 
 class Return(object):
-    def __init__(self, value=None):
-        self.value = value
+    def __init__(self, *args):
+        # mimic the semantics of the return statement
+        if len(args) == 0:
+            self.value = None
+        elif len(args) == 1:
+            self.value = args[0]
+        else:
+            self.value = args
 
 
 class InvalidYieldException(Exception):
@@ -156,12 +162,18 @@ o = _o
 
 @_o
 def launch(oroutine, *args, **kwargs):
-    r = yield oroutine(*args, **kwargs)
-    if isinstance(r, Exception):
-        if hasattr(r, '_monocle'):
-            print format_tb(r)
+    try:
+        cb = oroutine(*args, **kwargs)
+        if not isinstance(cb, (Callback, TwistedDeferred)):
+            yield Return(cb)
+
+        r = yield cb
+        yield Return(r)
+    except Exception, e:
+        if hasattr(e, '_monocle'):
+            print format_tb(e)
         else:
             import traceback
             import sys
-            traceback.print_exception(type(r), r, sys.exc_info()[2])
-    yield Return(r)
+            traceback.print_exception(type(e), e, sys.exc_info()[2])
+

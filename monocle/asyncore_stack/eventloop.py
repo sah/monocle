@@ -2,6 +2,8 @@ import asyncore
 import time
 import functools
 
+from monocle import launch
+
 class EventLoop(object):
     def __init__(self):
         self._running = True
@@ -21,7 +23,7 @@ class EventLoop(object):
                 next = self._queue[-1][0] - time.time()
                 if next <= 0:
                     task = self._queue.pop()
-                    task[1](*task[2], **task[3])
+                    launch(task[1], *task[2], **task[3])
                 else:
                     timeout = next
             if self._map:
