@@ -169,6 +169,8 @@ def launch(oroutine, *args, **kwargs):
 
         r = yield cb
         yield Return(r)
+    except GeneratorExit:
+        raise
     except Exception, e:
         if hasattr(e, '_monocle'):
             print format_tb(e)
