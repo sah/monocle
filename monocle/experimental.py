@@ -13,25 +13,24 @@ class Channel(object):
     def __init__(self, bufsize=0):
         self.bufsize = bufsize
         self._msgs = deque()
-        self._recv_cb = None
-        self._send_cb = None
+        self._recv_cbs = deque()
+        self._send_cbs = deque()
 
     @_o
     def send(self, value):
-        if not self._recv_cb:
+        if not self._recv_cbs:
             if len(self._msgs) >= self.bufsize:
-                if not self._send_cb:
-                    self._send_cb = Callback()
-                yield self._send_cb
+                cb = Callback()
+                self._send_cbs.append(cb)
+                yield cb
 
-        if not self._recv_cb:
+        if not self._recv_cbs:
             assert (len(self._msgs) < self.bufsize)
             self._msgs.append(value)
             return
 
         assert(len(self._msgs) == 0)
-        cb = self._recv_cb
-        self._recv_cb = None
+        cb = self._recv_cbs.popleft()
         queue_task(0, cb, value)
 
     @_o
@@ -40,18 +39,16 @@ class Channel(object):
         if self._msgs:
             value = self._msgs.popleft()
             popped = True
+        else:
+            rcb = Callback()
+            self._recv_cbs.append(rcb)
 
-        if not self._recv_cb:
-            self._recv_cb = Callback()
-        recv_cb = self._recv_cb
-
-        if self._send_cb:
-            cb = self._send_cb
-            self._send_cb = None
+        if self._send_cbs:
+            cb = self._send_cbs.popleft()
             queue_task(0, cb, None)
 
         if not popped:
-            value = yield recv_cb
+            value = yield rcb
         yield Return(value)
 
 
