@@ -47,6 +47,14 @@ def format_tb(e):
     return first + s + "\n" + last
 
 
+def _add_monocle_tb(e):
+    tb = traceback.format_exc()
+    if not hasattr(e, "_monocle"):
+        e._monocle = {'tracebacks': []}
+    e._monocle['tracebacks'].append(tb)
+    return e
+
+
 def _monocle_chain(to_gen, g, callback):
     # This function is complicated by the need to prevent unbounded recursion
     # arising from repeatedly yielding immediately ready callbacks.  This while
@@ -66,15 +74,16 @@ def _monocle_chain(to_gen, g, callback):
             # "return" statement (or fell off the end of the generator)
             from_gen = Return()
         except Exception, e:
-            tb = traceback.format_exc()
-            if not hasattr(e, "_monocle"):
-                e._monocle = {'tracebacks': []}
-            e._monocle['tracebacks'].append(tb)
-            callback(e)
+            callback(_add_monocle_tb(e))
             return callback
 
         if isinstance(from_gen, Return):
-            callback(from_gen.value)
+            try:
+                g.close()
+            except Exception, e:
+                callback(_add_monocle_tb(e))
+            else:
+                callback(from_gen.value)
             return callback
         elif not isinstance(from_gen, Callback):
             if isinstance(from_gen, TwistedDeferred):
@@ -156,6 +165,7 @@ def _o(f):
     return mergeFunctionMetadata(f, unwindGenerator)
 o = _o
 
+
 def log_exception(e=None):
     if e is None:
         e = sys.exc_info()[1]
@@ -164,6 +174,7 @@ def log_exception(e=None):
         log.error("%s\n%s", str(e), format_tb(e))
     else:
         log.exception(e)
+
 
 @_o
 def launch(oroutine, *args, **kwargs):
