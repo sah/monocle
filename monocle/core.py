@@ -76,32 +76,22 @@ def _monocle_chain(to_gen, g, callback):
         if isinstance(from_gen, Return):
             callback(from_gen.value)
             return callback
-        elif not isinstance(from_gen,
-                            (Callback, TwistedDeferred)):
-            e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Callback and Return types." % (from_gen, type(from_gen), g))
-            return _monocle_chain(e, g, callback)
-
-        state = {'waiting': True}
-
-        # a callback was yielded, get the result.
-        def gotResult(r):
-            if state['waiting']:
-                state['waiting'] = False
-                state['result'] = r
+        elif not isinstance(from_gen, Callback):
+            if isinstance(from_gen, TwistedDeferred):
+                cb = Callback()
+                from_gen.addBoth(cb)
+                from_gen = cb
             else:
-                _monocle_chain(r, g, callback)
-        if isinstance(from_gen, TwistedDeferred):
-            from_gen.addBoth(gotResult)
-        else:
-            from_gen.add(gotResult)
+                e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Callback and Return types." % (from_gen, type(from_gen), g))
+                return _monocle_chain(e, g, callback)
 
-        if state['waiting']:
-            # Haven't called back yet, set flag so that we get reinvoked
-            # and return from the loop
-            state['waiting'] = False
+        if not hasattr(from_gen, 'result'):
+            def gotResult(r):
+                _monocle_chain(r, g, callback)
+            from_gen.add(gotResult)
             return callback
 
-        to_gen = state['result']
+        to_gen = from_gen.result
 
 
 def maybeCallbackGenerator(f, *args, **kw):
