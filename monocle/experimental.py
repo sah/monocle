@@ -25,11 +25,11 @@ class Channel(object):
                 yield cb
 
         if not self._recv_cbs:
-            assert (len(self._msgs) < self.bufsize)
+            assert len(self._msgs) < self.bufsize, "No receive callback when buffer full (%s of %s slots used)" % (len(self._msgs), self.bufsize)
             self._msgs.append(value)
             return
 
-        assert(len(self._msgs) == 0)
+        assert len(self._msgs) == 0, "Triggering receiver when buffer has %s slots full" % len(self._msgs)
         cb = self._recv_cbs.popleft()
         queue_task(0, cb, value)
 
