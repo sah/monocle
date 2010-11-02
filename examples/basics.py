@@ -31,5 +31,9 @@ def main():
     else:
         assert False
 
+def func_fail():
+    raise Exception("boo")
+
 monocle.launch(fail)
+monocle.launch(func_fail)
 monocle.launch(main)

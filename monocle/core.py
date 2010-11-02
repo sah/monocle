@@ -3,6 +3,8 @@
 import sys
 import types
 import traceback
+import logging
+import traceback
 
 from callback import Callback, defer
 
@@ -14,6 +16,10 @@ try:
 except ImportError:
     class TwistedFailure: pass
     class TwistedDeferred: pass
+
+logging.basicConfig(stream=sys.stderr,
+                    format="%(message)s")
+log = logging.getLogger("monocle")
 
 
 class Return(object):
@@ -160,6 +166,15 @@ def _o(f):
     return mergeFunctionMetadata(f, unwindGenerator)
 o = _o
 
+def log_exception(e=None):
+    if e is None:
+        e = sys.exc_info()[1]
+
+    if hasattr(e, '_monocle'):
+        log.error("%s\n%s", str(e), format_tb(e))
+    else:
+        log.exception(e)
+
 @_o
 def launch(oroutine, *args, **kwargs):
     try:
@@ -171,11 +186,5 @@ def launch(oroutine, *args, **kwargs):
         yield Return(r)
     except GeneratorExit:
         raise
-    except Exception, e:
-        if hasattr(e, '_monocle'):
-            print format_tb(e)
-        else:
-            import traceback
-            import sys
-            traceback.print_exception(type(e), e, sys.exc_info()[2])
-
+    except Exception:
+        log_exception()
