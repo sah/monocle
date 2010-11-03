@@ -107,11 +107,7 @@ def maybeCallbackGenerator(f, *args, **kw):
     try:
         result = f(*args, **kw)
     except Exception, e:
-        tb = traceback.format_exc()
-        if not hasattr(e, "_monocle"):
-            e._monocle = {'tracebacks': []}
-        e._monocle['tracebacks'].append(tb)
-        return defer(e)
+        return defer(_add_monocle_tb(e))
 
     if isinstance(result, types.GeneratorType):
         return _monocle_chain(None, result, Callback())
