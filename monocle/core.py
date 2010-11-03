@@ -47,19 +47,27 @@ def format_tb(e):
     return first + s + "\n" + last
 
 
-def _add_monocle_tb(e):
-    tb = traceback.format_exc()
+def _append_traceback(e, tb):
     if not hasattr(e, "_monocle"):
         e._monocle = {'tracebacks': []}
     e._monocle['tracebacks'].append(tb)
     return e
 
 
+def _add_monocle_tb(e):
+    tb = traceback.format_exc()
+    return _append_traceback(e, tb)
+
+
+def _add_twisted_tb(f):
+    tb = f.getTraceback(elideFrameworkCode=True)
+    return _append_traceback(f.value, tb)
+
+
 def _monocle_chain(to_gen, g, callback):
     # This function is complicated by the need to prevent unbounded recursion
     # arising from repeatedly yielding immediately ready callbacks.  This while
-    # loop and the state variable solve that by manually unfolding the
-    # recursion.
+    # loop solves that by manually unfolding the recursion.
 
     while True:
         try:
@@ -88,7 +96,7 @@ def _monocle_chain(to_gen, g, callback):
         elif not isinstance(from_gen, Callback):
             if isinstance(from_gen, TwistedDeferred):
                 cb = Callback()
-                from_gen.addBoth(cb)
+                from_gen.addCallbacks(cb, lambda f : cb(_add_twisted_tb(f)))
                 from_gen = cb
             else:
                 e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Callback and Return types." % (from_gen, type(from_gen), g))
@@ -114,7 +122,9 @@ def maybeCallbackGenerator(f, *args, **kw):
     elif isinstance(result, Callback):
         return result
     elif isinstance(result, TwistedDeferred):
-        return result  # FIXME -- convert
+        cb = Callback()
+        result.addCallbacks(cb, lambda f : cb(_add_twisted_tb(f)))
+        return cb
     return defer(result)
 
 
