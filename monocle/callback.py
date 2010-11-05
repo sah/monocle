@@ -8,6 +8,8 @@ class Callback(object):
         if hasattr(self, 'result'):
             handler(self.result)
         else:
+            if not callable(handler):
+                raise TypeError("'%s' object is not callable" % type(handler).__name__)
             self._handlers.append(handler)
 
     def __call__(self, result):
