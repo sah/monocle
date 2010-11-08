@@ -135,10 +135,15 @@ class _HttpServerResource(resource.Resource):
         @_o
         def _handler(request):
             try:
-                yield launch(self.handler, request)
+                code, headers, content = yield launch(self.handler, request)
             except:
-                yield http_respond(request, 500, {},
-                                   "500 Internal Server Error")
+                code, headers, content = 500, {}, "500 Internal Server Error"
+            request.setResponseCode(code)
+            headers.setdefault('Server', 'monocle/%s' % VERSION)
+            for name, value in headers.iteritems():
+                request.setHeader(name, value)
+            request.write(content)
+            request.finish()
         _handler(request)
         return server.NOT_DONE_YET
 
@@ -149,14 +154,4 @@ class HttpServer(object):
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
-
-
-@_o
-def http_respond(request, code, headers, content):
-    request.setResponseCode(code)
-    headers.setdefault('Server', 'monocle/%s' % VERSION)
-    for name, value in headers.iteritems():
-        request.setHeader(name, value)
-    request.write(content)
-    request.finish()
 
