@@ -46,23 +46,19 @@ class HttpServer(object):
         @_o
         def _handler(request):
             try:
-                yield launch(self.handler, request)
+                code, headers, content = yield launch(self.handler, request)
             except:
-                yield http_respond(request, 500, {},
-                                   "500 Internal Server Error")
+                code, headers, content = 500, {}, "500 Internal Server Error"
+            request.write("HTTP/1.1 %s\r\n" % code)
+            headers.setdefault('Server', 'monocle/%s' % VERSION)
+            headers.setdefault('Content-Length', str(len(content)))
+            for name, value in headers.iteritems():
+                request.write("%s: %s\r\n" % (name, value))
+            request.write("\r\n")
+            request.write(content)
+            request.finish()
         self._http_server = tornado.httpserver.HTTPServer(
             _handler,
             io_loop=el._tornado_ioloop)
         self._http_server.listen(self.port)
 
-
-@_o
-def http_respond(request, code, headers, content):
-    request.write("HTTP/1.1 %s\r\n" % code)
-    headers.setdefault('Server', 'monocle/%s' % VERSION)
-    headers.setdefault('Content-Length', str(len(content)))
-    for name, value in headers.iteritems():
-        request.write("%s: %s\r\n" % (name, value))
-    request.write("\r\n")
-    request.write(content)
-    request.finish()

@@ -18,9 +18,10 @@ HTTP server, and the other makes an HTTP request:
     import monocle
     monocle.init("tornado")
 
+    from monocle import Return
     from monocle.stack import eventloop
     from monocle.stack.network import add_service
-    from monocle.stack.network.http import HttpClient, HttpHeaders, HttpServer, http_respond
+    from monocle.stack.network.http import HttpClient, HttpHeaders, HttpServer
 
     @monocle.o
     def hello_http(req):
@@ -28,7 +29,7 @@ HTTP server, and the other makes an HTTP request:
         headers = HttpHeaders()
         headers['Content-Length'] = len(content)
         headers['Content-Type'] = 'text/plain'
-        yield http_respond(req, 200, headers, content)
+        yield Return(200, headers, content)
 
     @monocle.o
     def request():
