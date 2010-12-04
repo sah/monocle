@@ -22,14 +22,13 @@ if not "twisted.internet.reactor" in sys.modules:
                     from twisted.internet import pollreactor
                     pollreactor.install()
                 except:
-                    try:
-                        from twisted.internet import selectreactor
-                        selectreactor.install()
-                    except:
-                        pass
+                    pass
 
 from twisted.internet import reactor
-from twisted.internet.error import ReactorNotRunning
+try:
+    from twisted.internet.error import ReactorNotRunning
+except ImportError:
+    ReactorNotRunning = RuntimeError
 
 
 # thanks to Peter Norvig
