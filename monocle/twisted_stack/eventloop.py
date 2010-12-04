@@ -15,14 +15,10 @@ if not "twisted.internet.reactor" in sys.modules:
             kqreactor.install()
         except:
             try:
-                from twisted.internet import iocpreactor
-                iocpreactor.install()
+                from twisted.internet import pollreactor
+                pollreactor.install()
             except:
-                try:
-                    from twisted.internet import pollreactor
-                    pollreactor.install()
-                except:
-                    pass
+                pass
 
 from twisted.internet import reactor
 try:
