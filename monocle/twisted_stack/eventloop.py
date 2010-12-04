@@ -22,7 +22,11 @@ if not "twisted.internet.reactor" in sys.modules:
                     from twisted.internet import pollreactor
                     pollreactor.install()
                 except:
-                    pass
+                    try:
+                        from twisted.internet import selectreactor
+                        selectreactor.install()
+                    except:
+                        pass
 
 from twisted.internet import reactor
 from twisted.internet.error import ReactorNotRunning
