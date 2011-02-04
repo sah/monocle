@@ -75,7 +75,7 @@ def _monocle_chain(to_gen, g, callback):
             if isinstance(to_gen, Exception):
                 from_gen = g.throw(type(to_gen), to_gen)
             elif isinstance(to_gen, TwistedFailure):
-                from_gen = to_gen.throwExceptionIntoGenerator(g)
+                from_gen = g.throw(to_gen.type, to_gen.value, to_gen.tb)
             else:
                 from_gen = g.send(to_gen)
         except StopIteration:
