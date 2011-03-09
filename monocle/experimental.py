@@ -18,37 +18,37 @@ class Channel(object):
 
     @_o
     def send(self, value):
-        if not self._recv_cbs:
-            if len(self._msgs) >= self.bufsize:
-                cb = Callback()
-                self._send_cbs.append(cb)
-                yield cb
-
-        if not self._recv_cbs:
-            assert len(self._msgs) < self.bufsize, "No receive callback when buffer full (%s of %s slots used)" % (len(self._msgs), self.bufsize)
+        if self._recv_cbs:
+            # if there are receivers waiting, send to the first one
+            rcb = self._recv_cbs.popleft()
+            queue_task(0, rcb, value)
+        elif len(self._msgs) < self.bufsize:
+            # if there's available buffer, use that
             self._msgs.append(value)
-            return
-
-        assert len(self._msgs) == 0, "Triggering receiver when buffer has %s slots full" % len(self._msgs)
-        cb = self._recv_cbs.popleft()
-        queue_task(0, cb, value)
+        else:
+            # otherwise, wait for a receiver
+            cb = Callback()
+            self._send_cbs.append(cb)
+            rcb = yield cb
+            queue_task(0, rcb, value)
 
     @_o
     def recv(self):
-        popped = False
+        # if there's buffer, read it
         if self._msgs:
             value = self._msgs.popleft()
-            popped = True
-        else:
-            rcb = Callback()
-            self._recv_cbs.append(rcb)
+            yield Return(value)
 
+        # otherwise we need a sender
+        rcb = Callback()
         if self._send_cbs:
+            # if there are senders waiting, wake up the first one
             cb = self._send_cbs.popleft()
-            queue_task(0, cb, None)
-
-        if not popped:
-            value = yield rcb
+            cb(rcb)
+        else:
+            # otherwise, wait for a sender
+            self._recv_cbs.append(rcb)
+        value = yield rcb
         yield Return(value)
 
 
