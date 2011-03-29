@@ -5,6 +5,8 @@ import types
 import traceback
 import logging
 import traceback
+import time
+import inspect
 
 from callback import Callback, defer
 
@@ -21,6 +23,7 @@ logging.basicConfig(stream=sys.stderr,
                     format="%(message)s")
 log = logging.getLogger("monocle")
 
+blocking_warn_threshold = 500 # ms
 
 class Return(object):
     def __init__(self, *args):
@@ -72,12 +75,20 @@ def _monocle_chain(to_gen, g, callback):
     while True:
         try:
             # Send the last result back as the result of the yield expression.
-            if isinstance(to_gen, Exception):
-                from_gen = g.throw(type(to_gen), to_gen)
-            elif isinstance(to_gen, TwistedFailure):
-                from_gen = g.throw(to_gen.type, to_gen.value, to_gen.tb)
-            else:
-                from_gen = g.send(to_gen)
+            start = time.time()
+            try:
+                if isinstance(to_gen, Exception):
+                    from_gen = g.throw(type(to_gen), to_gen)
+                elif isinstance(to_gen, TwistedFailure):
+                    from_gen = g.throw(to_gen.type, to_gen.value, to_gen.tb)
+                else:
+                    from_gen = g.send(to_gen)
+            finally:
+                end = time.time()
+                duration = int((end - start) * 1000)
+                if duration > blocking_warn_threshold:
+                    fi = inspect.getframeinfo(g.gi_frame)
+                    log.warn("oroutine '%s' blocked for %sms before %s:%s", g.__name__, duration, fi.filename, fi.lineno)
         except StopIteration:
             # "return" statement (or fell off the end of the generator)
             from_gen = Return()
