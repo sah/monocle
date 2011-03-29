@@ -84,11 +84,10 @@ def _monocle_chain(to_gen, g, callback):
                 else:
                     from_gen = g.send(to_gen)
             finally:
-                end = time.time()
-                duration = int((end - start) * 1000)
+                duration = (time.time() - start) * 1000
                 if duration > blocking_warn_threshold:
                     fi = inspect.getframeinfo(g.gi_frame)
-                    log.warn("oroutine '%s' blocked for %sms before %s:%s", g.__name__, duration, fi.filename, fi.lineno)
+                    log.warn("oroutine '%s' blocked for %dms before %s:%s", g.__name__, duration, fi.filename, fi.lineno)
         except StopIteration:
             # "return" statement (or fell off the end of the generator)
             from_gen = Return()
