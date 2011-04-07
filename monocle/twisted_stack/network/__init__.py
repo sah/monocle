@@ -4,6 +4,7 @@
 
 from monocle.twisted_stack.eventloop import reactor
 from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
+from twisted.internet import ssl
 
 from monocle import _o, Return, launch
 from monocle.callback import Callback
@@ -87,6 +88,40 @@ class Service(object):
         self.bindaddr = bindaddr
         self.backlog = backlog
 
+    def _add(self):
+        if self.ssl_options is not None:
+            cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
+                                                  self.ssl_options['certfile'])
+            reactor.listenSSL(self.port, self.factory, cf,
+                              backlog=self.backlog,
+                              interface=self.bindaddr)
+        else:
+            reactor.listenTCP(self.port, self.factory,
+                              backlog=self.backlog,
+                              interface=self.bindaddr)
+
+
+class SSLService(Service):
+
+    def __init__(self, handler, port, bindaddr="", backlog=128,
+                 ssl_options=None):
+        if ssl_options is None:
+            ssl_options = {}
+        self.ssl_options = ssl_options
+        Service.__init__(self, handler, port, bindaddr, backlog)
+
+
+class SSLContextFactory(ssl.ClientContextFactory):
+
+    def __init__(self, ssl_options):
+        self.ssl_options = ssl_options
+
+    def getContext(self):
+        ctx = ssl.ClientContextFactory.getContext(self)
+        ctx.use_certificate_file(self.ssl_options['certfile'])
+        ctx.use_privatekey_file(self.ssl_options['keyfile'])
+        return ctx
+
 
 class Client(Connection):
     @_o
@@ -94,10 +129,20 @@ class Client(Connection):
         self._stack_conn = _Connection()
         self._stack_conn.attach(self)
         c = ClientCreator(reactor, lambda: self._stack_conn)
-        yield c.connectTCP(host, port)
+        if self.ssl_options is not None:
+            yield c.connectSSL(host, port, SSLContextFactory(self.ssl_options))
+        else:
+            yield c.connectTCP(host, port)
+
+
+class SSLClient(Client):
+
+    def __init__(self, ssl_options=None):
+        if ssl_options is None:
+            ssl_options = {}
+        self.ssl_options = ssl_options
+        Connection.__init__(self)
 
 
 def add_service(service):
-    reactor.listenTCP(service.port, service.factory,
-                      backlog=service.backlog,
-                      interface=service.bindaddr)
+    return service._add()

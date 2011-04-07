@@ -5,8 +5,13 @@
 import errno
 import socket
 
+try:
+    import ssl # Python 2.6+
+except ImportError:
+    ssl = None
+
 import tornado.ioloop
-from tornado.iostream import IOStream
+from tornado.iostream import IOStream, SSLIOStream
 
 from monocle import _o, launch
 from monocle.callback import Callback
@@ -15,31 +20,34 @@ from monocle.stack.network import ConnectionLost
 from monocle.tornado_stack.eventloop import evlp
 
 
-class _Connection(IOStream):
+class _Connection:
 
-    def attach(self, connection):
-        self.set_close_callback(self._close_called)
-        self._write_flushed = connection._write_flushed
-        self._closed = connection._closed
+    def __init__(self, iostream):
+        self.iostream = iostream
+        self.iostream.set_close_callback(self._close_called)
         self.read_cb = None
         self.connect_cb = None
+
+    def attach(self, connection):
+        self._write_flushed = connection._write_flushed
+        self._closed = connection._closed
 
     def connect(self, address):
         cb = Callback()
         self.connect_cb = cb
-        IOStream.connect(self, address, self._connect_complete)
+        self.iostream.connect(address, self._connect_complete)
         return cb
 
     def read(self, size):
         cb = Callback()
         self.read_cb = cb
-        IOStream.read_bytes(self, size, self._read_complete)
+        self.iostream.read_bytes(size, self._read_complete)
         return cb
 
     def read_until(self, s):
         cb = Callback()
         self.read_cb = cb
-        IOStream.read_until(self, s, self._read_complete)
+        self.iostream.read_until(s, self._read_complete)
         return cb
 
     def _connect_complete(self, result=None):
@@ -63,10 +71,19 @@ class _Connection(IOStream):
     # functions to support the StackConnection interface
 
     def write(self, data):
-        IOStream.write(self, data, self._write_flushed)
+        self.iostream.write(data, self._write_flushed)
+
+    def resume(self):
+        self.iostream.resume()
+
+    def reading(self):
+        return self.iostream.reading()
+
+    def closed(self):
+        return self.iostream.closed()  
 
     def disconnect(self):
-        self.close()
+        self.iostream.close()
 
 
 class Connection(BaseConnection):
@@ -106,8 +123,29 @@ class Service(object):
                 if e[0] not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
                 return
-            s.setblocking(0)
-            connection = Connection(_Connection(s))
+            if self.ssl_options is not None:
+                assert ssl, "Python 2.6+ and OpenSSL required for SSL"
+                try:
+                    s = ssl.wrap_socket(s,
+                                        server_side=True,
+                                        do_handshake_on_connect=False,
+                                        **self.ssl_options)
+                except ssl.SSLError, err:
+                    if err.args[0] == ssl.SSL_ERROR_EOF:
+                        s.close()
+                        return
+                    else:
+                        raise
+                except socket.error, err:
+                    if err.args[0] == errno.ECONNABORTED:
+                        s.close()
+                        return
+                    else:
+                        raise
+                iostream = SSLIOStream(s)
+            else:
+                iostream = IOStream(s)
+            connection = Connection(_Connection(iostream))
             connection._stack_conn.attach(connection)
             self.handler(connection)
 
@@ -117,13 +155,37 @@ class Service(object):
                           evlp.READ)
 
 
+class SSLService(Service):
+
+    def __init__(self, handler, port, bindaddr="", backlog=128,
+                 ssl_options=None):
+        if ssl_options is None:
+            ssl_options = {}
+        self.ssl_options = ssl_options
+        Service.__init__(self, handler, port, bindaddr, backlog)
+
+
 class Client(Connection):
     @_o
     def connect(self, host, port):
         s = socket.socket()
-        self._stack_conn = _Connection(s)
+        if self.ssl_options is not None:
+            iostream = SSLIOStream(s, ssl_options=self.ssl_options)
+        else:
+            iostream = IOStream(s)
+        self._stack_conn = _Connection(iostream)
         self._stack_conn.attach(self)
-        yield self._stack_conn.connect((host, port))
+        self._stack_conn.connect((host, port))
+        yield self._stack_conn.connect_cb
+
+
+class SSLClient(Client):
+
+    def __init__(self, ssl_options=None):
+        if ssl_options is None:
+            ssl_options = {}
+        self.ssl_options = ssl_options
+        Connection.__init__(self)
 
 
 def add_service(service, evlp=evlp):
