@@ -22,7 +22,13 @@ class _Connection(IOStream):
         self._write_flushed = connection._write_flushed
         self._closed = connection._closed
         self.read_cb = None
-        self.connect_cb = Callback()
+        self.connect_cb = None
+
+    def connect(self, address):
+        cb = Callback()
+        self.connect_cb = cb
+        IOStream.connect(self, address, self._connect_complete)
+        return cb
 
     def read(self, size):
         cb = Callback()
@@ -36,27 +42,22 @@ class _Connection(IOStream):
         IOStream.read_until(self, s, self._read_complete)
         return cb
 
+    def _connect_complete(self, result=None):
+        cb = self.connect_cb
+        self.connect_cb = None
+        cb(result)
+
     def _read_complete(self, result):
         cb = self.read_cb
         self.read_cb = None
         cb(result)
-
-    def _handle_connect(self, reason=None):
-        cb = self.connect_cb
-        self.connect_cb = None
-        cb(reason)
-
-    def _handle_write(self):
-        if self.connect_cb:
-            self._handle_connect(None)
-        IOStream._handle_write(self)
 
     def _close_called(self, reason=None):
         # XXX: get a real reason from Tornado
         if reason is None:
             reason = IOError("Connection closed")
         if self.connect_cb is not None:
-            self._handle_connect(reason)
+            self._connect_complete(reason)
         self._closed(reason)
 
     # functions to support the StackConnection interface
@@ -122,13 +123,7 @@ class Client(Connection):
         s = socket.socket()
         self._stack_conn = _Connection(s)
         self._stack_conn.attach(self)
-        try:
-            s.connect((host, port))
-        except socket.error, e:
-            if e.errno not in (errno.EINPROGRESS, errno.EWOULDBLOCK):
-                raise
-        self._stack_conn._add_io_state(self._stack_conn.io_loop.WRITE)
-        yield self._stack_conn.connect_cb
+        yield self._stack_conn.connect((host, port))
 
 
 def add_service(service, evlp=evlp):
