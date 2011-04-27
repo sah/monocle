@@ -12,7 +12,6 @@ from monocle.stack.network import Connection, ConnectionLost
 
 
 class _Connection(Protocol):
-
     def attach(self, connection):
         self._write_flushed = connection._write_flushed
         self._closed = connection._closed
@@ -87,6 +86,7 @@ class Service(object):
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
+        self.ssl_options = None
 
     def _add(self):
         if self.ssl_options is not None:
@@ -107,8 +107,8 @@ class SSLService(Service):
                  ssl_options=None):
         if ssl_options is None:
             ssl_options = {}
-        self.ssl_options = ssl_options
         Service.__init__(self, handler, port, bindaddr, backlog)
+        self.ssl_options = ssl_options
 
 
 class SSLContextFactory(ssl.ClientContextFactory):
@@ -124,6 +124,10 @@ class SSLContextFactory(ssl.ClientContextFactory):
 
 
 class Client(Connection):
+    def __init__(self, *args, **kwargs):
+        Connection.__init__(self, *args, **kwargs)
+        self.ssl_options = None
+
     @_o
     def connect(self, host, port):
         self._stack_conn = _Connection()
@@ -140,8 +144,8 @@ class SSLClient(Client):
     def __init__(self, ssl_options=None):
         if ssl_options is None:
             ssl_options = {}
-        self.ssl_options = ssl_options
         Connection.__init__(self)
+        self.ssl_options = ssl_options
 
 
 def add_service(service):

@@ -104,6 +104,9 @@ class Connection(object):
         if self._stack_conn.closed():
             raise IOError("Stream is closed")
 
+    def is_closed(self):
+        return self._stack_conn.closed()
+
 
 if monocle._stack_name == 'twisted':
     from monocle.twisted_stack.network import *
