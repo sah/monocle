@@ -110,6 +110,7 @@ class Service(object):
         self.bindaddr = bindaddr
         self.backlog = backlog
         self.ssl_options = None
+        self._evlp = None
         self._sock = socket.socket()
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.setblocking(0)
@@ -151,9 +152,15 @@ class Service(object):
             self.handler(connection)
 
     def _add(self, evlp):
-        evlp._add_handler(self._sock.fileno(),
-                          self._connection_ready,
-                          evlp.READ)
+        self._evlp = evlp
+        self._evlp._add_handler(self._sock.fileno(),
+                                self._connection_ready,
+                                self._evlp.READ)
+
+    @_o
+    def stop(self):
+        if self._evlp:
+            self._evlp._remove_handler(self._sock.fileno())
 
 
 class SSLService(Service):

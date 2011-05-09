@@ -87,18 +87,27 @@ class Service(object):
         self.bindaddr = bindaddr
         self.backlog = backlog
         self.ssl_options = None
+        self._twisted_listening_port = None
 
     def _add(self):
         if self.ssl_options is not None:
             cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
                                                   self.ssl_options['certfile'])
-            reactor.listenSSL(self.port, self.factory, cf,
-                              backlog=self.backlog,
-                              interface=self.bindaddr)
+            self._twisted_listening_port = reactor.listenSSL(
+                self.port, self.factory, cf,
+                backlog=self.backlog,
+                interface=self.bindaddr)
         else:
-            reactor.listenTCP(self.port, self.factory,
-                              backlog=self.backlog,
-                              interface=self.bindaddr)
+            self._twisted_listening_port = reactor.listenTCP(
+                self.port, self.factory,
+                backlog=self.backlog,
+                interface=self.bindaddr)
+
+    @_o
+    def stop(self):
+        df = self._twisted_listening_port.stopListening()
+        if df:
+            yield df
 
 
 class SSLService(Service):

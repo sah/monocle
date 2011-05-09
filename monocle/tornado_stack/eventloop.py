@@ -27,6 +27,9 @@ class EventLoop(object):
     def _add_handler(self, *a, **k):
         self._tornado_ioloop.add_handler(*a, **k)
 
+    def _remove_handler(self, *a, **k):
+        self._tornado_ioloop.remove_handler(*a, **k)
+
 evlp = EventLoop()
 queue_task = evlp.queue_task
 run = evlp.run

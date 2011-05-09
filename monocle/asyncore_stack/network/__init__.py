@@ -103,6 +103,10 @@ class Service(object):
         self._conn.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self._conn.set_reuse_addr()
 
+    @_o
+    def stop(self):
+        self._conn.close()
+
 
 class Client(Connection):
     @_o
