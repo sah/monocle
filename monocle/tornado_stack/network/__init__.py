@@ -4,6 +4,7 @@
 
 import errno
 import socket
+import new
 
 try:
     import ssl # Python 2.6+
@@ -18,6 +19,54 @@ from monocle.callback import Callback
 from monocle.stack.network import Connection as BaseConnection
 from monocle.stack.network import ConnectionLost
 from monocle.tornado_stack.eventloop import evlp
+
+
+def monkeypatch(cls):
+    def decorator(f):
+        orig_method = None
+        method = getattr(cls, f.func_name, None)
+        if method:
+            orig_method = lambda *a, **k: method(*a, **k)
+        def g(*a, **k):
+            return f(orig_method, *a, **k)
+        g.func_name = f.func_name
+        setattr(cls, f.func_name,
+                new.instancemethod(g, None, cls))
+    return decorator
+
+
+# monkeypatch IOStream to provide a reactive read
+@monkeypatch(IOStream)
+def __init__(orig_method, self, *a, **k):
+    orig_method(self, *a, **k)
+    self._read_some = None
+
+@monkeypatch(IOStream)
+def _read_from_buffer(orig_method, self):
+    if self._read_some is not None:
+        if self._read_buffer_size > 0:
+            callback = self._read_callback
+            self._read_callback = None
+            self._read_some = None
+            self._run_callback(callback, self._consume(self._read_buffer_size))
+            return True
+    else:
+        return orig_method(self)
+
+@monkeypatch(IOStream)
+def read_some(orig_method, self, callback):
+    """Call callback when we read some bytes."""
+    from tornado import stack_context
+    assert not self._read_callback, "Already reading"
+    self._read_some = True
+    self._read_callback = stack_context.wrap(callback)
+    while True:
+        if self._read_from_buffer():
+            return
+        self._check_closed()
+        if self._read_to_buffer() == 0:
+            break
+    self._add_io_state(self.io_loop.READ)
 
 
 class _Connection:
@@ -36,6 +85,12 @@ class _Connection:
         cb = Callback()
         self.connect_cb = cb
         self.iostream.connect(address, self._connect_complete)
+        return cb
+
+    def read_some(self):
+        cb = Callback()
+        self.read_cb = cb
+        self.iostream.read_some(self._read_complete)
         return cb
 
     def read(self, size):
@@ -87,6 +142,10 @@ class _Connection:
 
 
 class Connection(BaseConnection):
+
+    def read_some(self):
+        self._check_reading()
+        return self._stack_conn.read_some()
 
     def read(self, size):
         self._check_reading()
