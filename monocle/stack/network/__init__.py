@@ -37,6 +37,19 @@ class Connection(object):
         self._flush_cb = Callback()
 
     @_o
+    def read_some(self):
+        self._check_reading()
+
+        if not self._stack_conn.buffer:
+            self._check_closed()
+            self._stack_conn.resume()
+            yield self._stack_conn.read_cb
+
+        tmp = self._stack_conn.buffer
+        self._stack_conn.buffer = ""
+        yield Return(tmp)
+
+    @_o
     def read(self, size):
         self._check_reading()
         while len(self._stack_conn.buffer) < size:
