@@ -1,5 +1,5 @@
 import monocle
-from monocle import _o
+from monocle import _o, Return
 from monocle.callback import Callback
 
 
