@@ -16,8 +16,7 @@ from tornado.iostream import IOStream, SSLIOStream
 
 from monocle import _o, launch
 from monocle.callback import Callback
-from monocle.stack.network import Connection as BaseConnection
-from monocle.stack.network import ConnectionLost
+from monocle.stack.network import Connection, ConnectionLost
 from monocle.tornado_stack.eventloop import evlp
 
 
@@ -69,7 +68,7 @@ def read_some(orig_method, self, callback):
     self._add_io_state(self.io_loop.READ)
 
 
-class _Connection:
+class _Connection(object):
 
     def __init__(self, iostream):
         self.iostream = iostream
@@ -141,7 +140,8 @@ class _Connection:
         self.iostream.close()
 
 
-class Connection(BaseConnection):
+# A Tornado-specific connection which passes through to Tornado's read functions
+class TornadoConnection(Connection):
 
     def read_some(self):
         self._check_reading()
@@ -206,7 +206,7 @@ class Service(object):
                 iostream = SSLIOStream(s)
             else:
                 iostream = IOStream(s)
-            connection = Connection(_Connection(iostream))
+            connection = TornadoConnection(_Connection(iostream))
             connection._stack_conn.attach(connection)
             self.handler(connection)
 
@@ -232,7 +232,7 @@ class SSLService(Service):
         self.ssl_options = ssl_options
 
 
-class Client(Connection):
+class Client(TornadoConnection):
     def __init__(self, *args, **kwargs):
         Connection.__init__(self, *args, **kwargs)
         self.ssl_options = None
