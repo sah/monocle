@@ -118,8 +118,6 @@ class _Connection(object):
         # XXX: get a real reason from Tornado
         if reason is None:
             reason = IOError("Connection closed")
-        if self.connect_cb is not None:
-            self._connect_complete(reason)
         self._closed(reason)
 
     # functions to support the StackConnection interface

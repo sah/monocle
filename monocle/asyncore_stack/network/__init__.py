@@ -26,10 +26,10 @@ class _Connection(asyncore.dispatcher_with_send):
     def readable(self):
         return self.read_cb is not None
 
-    def handle_connect(self, reason=None):
+    def handle_connect(self):
         cb = self.connect_cb
         self.connect_cb = None
-        cb(reason)
+        cb(None)
 
     def handle_read(self):
         self.buffer += self.recv(8192)
@@ -47,8 +47,6 @@ class _Connection(asyncore.dispatcher_with_send):
         self.close()
         # XXX: get a real reason from asyncore
         reason = IOError("Connection closed")
-        if self.connect_cb is not None:
-            self.handle_connect(reason)
         self._closed(reason)
 
     def initiate_send(self):

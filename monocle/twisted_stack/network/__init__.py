@@ -3,7 +3,7 @@
 # by Steven Hazel
 
 from monocle.twisted_stack.eventloop import reactor
-from twisted.internet.protocol import Factory, Protocol, ClientCreator, ServerFactory
+from twisted.internet.protocol import Factory, Protocol, ClientFactory, ServerFactory
 from twisted.internet import ssl
 
 from monocle import _o, Return, launch
@@ -12,14 +12,19 @@ from monocle.stack.network import Connection, ConnectionLost
 
 
 class _Connection(Protocol):
+    def __init__(self):
+        self.read_cb = None
+        self.connect_cb = None
+
     def attach(self, connection):
         self._write_flushed = connection._write_flushed
         self._closed = connection._closed
 
+    # functions to support Protocol
+
     def connectionMade(self):
         self.max_buffer_size = 104857600
         self.buffer = ""
-        self.read_cb = None
         self.transport.pauseProducing()
         if hasattr(self, "factory"):
             connection = Connection(self)
@@ -27,6 +32,10 @@ class _Connection(Protocol):
         self.transport.registerProducer(self, False)
         if hasattr(self, "factory"):
             self.factory.handler(connection)
+        if self.connect_cb:
+            cb = self.connect_cb
+            self.connect_cb = None
+            cb(None)
 
     def dataReceived(self, data):
         self.transport.pauseProducing()
@@ -137,15 +146,23 @@ class Client(Connection):
         Connection.__init__(self, *args, **kwargs)
         self.ssl_options = None
 
+    def clientConnectionFailed(self, connector, reason):
+        self._closed(reason.value)
+
     @_o
     def connect(self, host, port):
         self._stack_conn = _Connection()
         self._stack_conn.attach(self)
-        c = ClientCreator(reactor, lambda: self._stack_conn)
+        self._stack_conn.connect_cb = Callback()
+        factory = ClientFactory()
+        factory.protocol = lambda: self._stack_conn
+        factory.clientConnectionFailed = self.clientConnectionFailed
         if self.ssl_options is not None:
-            yield c.connectSSL(host, port, SSLContextFactory(self.ssl_options))
+            reactor.connectSSL(host, port, factory,
+                               SSLContextFactory(self.ssl_options))
         else:
-            yield c.connectTCP(host, port)
+            reactor.connectTCP(host, port, factory)
+        yield self._stack_conn.connect_cb
 
 
 class SSLClient(Client):

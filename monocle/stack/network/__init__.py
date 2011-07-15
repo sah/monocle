@@ -13,6 +13,7 @@ class ConnectionLost(Exception):
 #   writes the data
 #
 # read_cb: callback which is called when a read completes
+# connect_cb: callback which is called when the connection completes
 #
 # def resume():
 #   resumes reading
@@ -98,6 +99,10 @@ class Connection(object):
     def _closed(self, reason):
         cl = ConnectionLost(str(reason))
         cl.original = reason
+        if self._stack_conn.connect_cb:
+            cb = self._stack_conn.connect_cb
+            self._stack_conn.connect_cb = None
+            cb(cl)
         self._write_flushed(cl)
         if self._stack_conn.read_cb:
             cb = self._stack_conn.read_cb
