@@ -5,8 +5,6 @@ import monocle
 from monocle import _o
 monocle.init(sys.argv[1])
 
-import socket
-
 from monocle.stack import eventloop
 from monocle.stack.network import add_service, Service, Client, ConnectionLost
 
@@ -17,9 +15,6 @@ def pump(input, output):
             message = yield input.read_some()
             yield output.write(message)
         except ConnectionLost:
-            output.close()
-            break
-        except socket.error:
             output.close()
             break
 
