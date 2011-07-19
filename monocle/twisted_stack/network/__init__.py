@@ -26,11 +26,11 @@ class _Connection(Protocol):
         self.max_buffer_size = 104857600
         self.buffer = ""
         self.transport.pauseProducing()
-        if hasattr(self, "factory"):
+        if hasattr(self.factory, "handler"):
             connection = Connection(self)
             self.attach(connection)
         self.transport.registerProducer(self, False)
-        if hasattr(self, "factory"):
+        if hasattr(self.factory, "handler"):
             self.factory.handler(connection)
         if self.connect_cb:
             cb = self.connect_cb
