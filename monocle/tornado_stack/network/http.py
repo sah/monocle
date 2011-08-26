@@ -4,21 +4,15 @@
 
 import urlparse
 
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
-
 import tornado.httpclient
 import tornado.httpserver
 
 from monocle import _o, Return, VERSION, launch
 from monocle.callback import Callback
+from monocle.stack.network.http import HttpHeaders
 
 
 class HttpException(Exception): pass
-
-HttpHeaders = OrderedDict
 
 class HttpClient(object):
     def __init__(self):

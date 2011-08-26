@@ -3,25 +3,22 @@
 # by Steven Hazel
 
 import urlparse
-
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
+import logging
 
 from monocle import _o, Return, VERSION, launch
 from monocle.callback import Callback
+from monocle.stack.network.http import HttpHeaders
 from monocle.twisted_stack.eventloop import reactor
+from monocle.twisted_stack.network import Service
 
 from twisted.internet import ssl
 from twisted.internet.protocol import ClientCreator
 from twisted.web.http import HTTPClient as TwistedHTTPClient
 from twisted.web import server, resource
 
+log = logging.getLogger("monocle.twisted_stack.network.http")
 
 class HttpException(Exception): pass
-
-class HttpHeaders(OrderedDict): pass
 
 
 class HttpResponse(object):
@@ -38,7 +35,7 @@ class _HttpClient(TwistedHTTPClient):
         except AttributeError:
             pass
         self.code = None
-        self.headers = OrderedDict()
+        self.headers = HttpHeaders()
         self.connect_cb = Callback()
         self.response_cb = Callback()
 
@@ -72,7 +69,7 @@ class HttpClient(object):
         return self._HEADER_NORMS.get(name.lower(), name)
 
     def _normalize_headers(self, headers):
-        return OrderedDict(
+        return HttpHeaders(
             ((self._normalize_header_name(key), value)
              for key, value in headers.iteritems()))
 
@@ -100,7 +97,7 @@ class HttpClient(object):
         path = '/' + url.split('/', 3)[3]
 
         if not headers:
-            headers = OrderedDict()
+            headers = HttpHeaders()
         headers = self._normalize_headers(headers)
         headers.setdefault('User-Agent', 'monocle/%s' % VERSION)
         headers.setdefault('Host', host)
@@ -136,22 +133,30 @@ class _HttpServerResource(resource.Resource):
         def _handler(request):
             try:
                 code, headers, content = yield launch(self.handler, request)
-            except:
+            except Exception, e:
+                print type(e), str(e)
+                log.log_exception()
                 code, headers, content = 500, {}, "500 Internal Server Error"
-            request.setResponseCode(code)
-            headers.setdefault('Server', 'monocle/%s' % VERSION)
-            for name, value in headers.iteritems():
-                request.setHeader(name, value)
-            request.write(content)
-            request.finish()
+            try:
+                request.setResponseCode(code)
+                headers.setdefault('Server', 'monocle/%s' % VERSION)
+                for name, value in headers.iteritems():
+                    print name, value
+                    request.setHeader(name, value)
+                request.write(content)
+                request.finish()
+            except Exception, e:
+                print type(e), str(e)
         _handler(request)
         return server.NOT_DONE_YET
 
 
-class HttpServer(object):
+class HttpServer(Service):
     def __init__(self, handler, port, bindaddr="", backlog=128):
         self.factory = server.Site(_HttpServerResource(handler))
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
+        self.ssl_options = None
+        self._twisted_listening_port = None
 
