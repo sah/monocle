@@ -109,7 +109,7 @@ def _monocle_chain(to_gen, g, callback):
         elif not isinstance(from_gen, Callback):
             if isinstance(from_gen, TwistedDeferred):
                 cb = Callback()
-                from_gen.addCallbacks(cb, lambda f : cb(_add_twisted_tb(f)))
+                from_gen.addCallbacks(cb, lambda f: cb(_add_twisted_tb(f)))
                 from_gen = cb
             else:
                 e = InvalidYieldException("Unexpected value '%s' of type '%s' yielded from o-routine '%s'.  O-routines can only yield Callback and Return types." % (from_gen, type(from_gen), g))
