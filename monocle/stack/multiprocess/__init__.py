@@ -121,7 +121,7 @@ def _subproc_wrapper(port, target, *args, **kwargs):
                 yield client.connect('127.0.0.1', port)
                 break
             except Exception, e:
-                print type(e), str(e)
+                print "failed to connect to monocle multiprocess parent on port", port, type(e), str(e)
                 yield sleep(1)
         chan = SocketChannel(client)
         yield target(chan, *args, **kwargs)

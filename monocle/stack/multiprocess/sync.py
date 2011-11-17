@@ -156,8 +156,10 @@ def _wrapper_with_sockets(target, port, *args, **kwargs):
         try:
             sock.connect(('127.0.0.1', port))
         except Exception, e:
-            print type(e), str(e)
+            print "failed to connect to monocle multiprocess parent on port", port, type(e), str(e)
             time.sleep(0.2)
+            sock.close()
+            sock = socket.socket()
         else:
             break
     try:
