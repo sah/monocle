@@ -9,24 +9,23 @@ import tornado.httpserver
 
 from monocle import _o, Return, VERSION, launch
 from monocle.callback import Callback
-from monocle.stack.network.http import HttpHeaders
+from monocle.stack.network import Client
+from monocle.stack.network.http import HttpHeaders, HttpClient
 
 
 class HttpException(Exception): pass
 
-class HttpClient(object):
-    def __init__(self):
-        self._proto = None
-
+class HttpClient(HttpClient):
+    @classmethod
     @_o
-    def request(self, url, headers=None, method='GET', body=None):
-        http_client = tornado.httpclient.AsyncHTTPClient()
+    def query(self, url, headers=None, method='GET', body=None):
+        _http_client = tornado.httpclient.AsyncHTTPClient()
         req = tornado.httpclient.HTTPRequest(url,
                                              method=method,
                                              headers=headers or {},
                                              body=body)
         cb = Callback()
-        http_client.fetch(req, cb)
+        _http_client.fetch(req, cb)
         response = yield cb
         yield Return(response)
 

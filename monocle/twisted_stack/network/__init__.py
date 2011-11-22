@@ -136,8 +136,10 @@ class SSLContextFactory(ssl.ClientContextFactory):
 
     def getContext(self):
         ctx = ssl.ClientContextFactory.getContext(self)
-        ctx.use_certificate_file(self.ssl_options['certfile'])
-        ctx.use_privatekey_file(self.ssl_options['keyfile'])
+        if 'certfile' in self.ssl_options:
+            ctx.use_certificate_file(self.ssl_options['certfile'])
+        if 'keyfile' in self.ssl_options:
+            ctx.use_privatekey_file(self.ssl_options['keyfile'])
         return ctx
 
 

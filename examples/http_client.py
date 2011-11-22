@@ -11,8 +11,17 @@ from monocle.stack.network.http import HttpClient
 def req():
     client = HttpClient()
     try:
+        yield client.connect("www.google.com", 80)
+        resp = yield client.request('/')
+        print resp.code, repr(resp.body)
         resp = yield client.request('http://www.google.com/')
-        print resp.code, resp.body
+        print resp.code, repr(resp.body)
+        client.close()
+        yield client.connect("localhost", 80)
+        resp = yield client.request('/')
+        print resp.code, repr(resp.body)
+        resp = yield client.request('http://localhost/')
+        print resp.code, repr(resp.body)
     finally:
         eventloop.halt()
 
