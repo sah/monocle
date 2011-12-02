@@ -125,11 +125,12 @@ def write_request(conn, method, path, headers, body=None):
 def read_response(conn):
     data = yield conn.read_until("\r\n\r\n")
     proto, code, msg, headers = parse_response(data)
+
     content_length = int(headers.get('Content-Length', 0))
+    body = ""
     if content_length:
         body = yield conn.read(content_length)
     elif headers.get('Transfer-Encoding') == 'chunked':
-        body = ""
         while True:
             line = yield conn.read_until("\r\n")
             line = line[:-2]
@@ -139,6 +140,7 @@ def read_response(conn):
             yield conn.read_until("\r\n")
             if not chunk_len:
                 break
+
     yield Return(HttpResponse(code, msg, headers, body, proto))
 
 
@@ -196,6 +198,9 @@ class HttpClient(object):
 
     def close(self):
         self.client.close()
+
+    def is_closed(self):
+        return self.client is None or self.client.is_closed()
 
     @classmethod
     @_o
