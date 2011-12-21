@@ -36,6 +36,12 @@ class Return(object):
         else:
             self.value = args
 
+    def __repr__(self):
+        return "<%s.%s object at 0x%x; value: %s>" % (self.__class__.__module__,
+                                                      self.__class__.__name__,
+                                                      id(self),
+                                                      repr(self.value))
+
 
 class InvalidYieldException(Exception):
     pass
