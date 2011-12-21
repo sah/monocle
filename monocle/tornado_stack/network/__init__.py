@@ -5,6 +5,7 @@
 import errno
 import socket
 import new
+import time
 
 try:
     import ssl # Python 2.6+
@@ -107,7 +108,8 @@ class _Connection(object):
     def _connect_complete(self, result=None):
         cb = self.connect_cb
         self.connect_cb = None
-        cb(result)
+        if cb:
+            cb(result)
 
     def _read_complete(self, result):
         cb = self.read_cb
@@ -236,12 +238,19 @@ class Client(TornadoConnection):
         self.ssl_options = None
 
     @_o
-    def connect(self, host, port):
+    def connect(self, host, port, timeout=30):
         s = socket.socket()
         if self.ssl_options is not None:
             iostream = SSLIOStream(s, ssl_options=self.ssl_options)
         else:
             iostream = IOStream(s)
+        if timeout is not None:
+            def _on_timeout():
+                cb = self._stack_conn.connect_cb
+                self._stack_conn.connect_cb = None
+                cb(ConnectionLost("connection timed out after %s seconds" % timeout))
+            self._timeout = iostream.io_loop.add_timeout(time.time() + timeout,
+                                                         _on_timeout)
         self._stack_conn = _Connection(iostream)
         self._stack_conn.attach(self)
         self._stack_conn.connect((host, port))

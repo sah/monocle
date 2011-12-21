@@ -5,6 +5,7 @@
 from monocle.twisted_stack.eventloop import reactor
 from twisted.internet.protocol import Factory, Protocol, ClientFactory, ServerFactory
 from twisted.internet import ssl
+from twisted.internet.error import TimeoutError
 
 from monocle import _o, Return, launch
 from monocle.callback import Callback
@@ -147,12 +148,19 @@ class Client(Connection):
     def __init__(self, *args, **kwargs):
         Connection.__init__(self, *args, **kwargs)
         self.ssl_options = None
+        self._connection_timeout = "unknown"
 
     def clientConnectionFailed(self, connector, reason):
-        self._closed(reason.value)
+        if reason.type == TimeoutError:
+            msg = ("connection timed out after %s seconds" %
+                   self._connection_timeout)
+        else:
+            msg = reason.value
+        self._closed(msg)
 
     @_o
-    def connect(self, host, port):
+    def connect(self, host, port, timeout=30):
+        self._connection_timeout = timeout
         self._stack_conn = _Connection()
         self._stack_conn.attach(self)
         self._stack_conn.connect_cb = Callback()
@@ -161,9 +169,11 @@ class Client(Connection):
         factory.clientConnectionFailed = self.clientConnectionFailed
         if self.ssl_options is not None:
             reactor.connectSSL(host, port, factory,
-                               SSLContextFactory(self.ssl_options))
+                               SSLContextFactory(self.ssl_options),
+                               timeout=self._connection_timeout)
         else:
-            reactor.connectTCP(host, port, factory)
+            reactor.connectTCP(host, port, factory,
+                               timeout=self._connection_timeout)
         yield self._stack_conn.connect_cb
 
 
