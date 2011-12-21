@@ -1,0 +1,113 @@
+import sys
+import code
+import readline
+import atexit
+import os
+import traceback
+
+import monocle
+from monocle import _o, Return
+monocle.init("twisted")
+from monocle.stack import eventloop
+from monocle.callback import Callback
+from twisted.internet import reactor
+
+
+class HistoryConsole(code.InteractiveConsole):
+    def __init__(self, locals=None, filename="<console>",
+                 histfile=os.path.expanduser("~/.console-history")):
+        code.InteractiveConsole.__init__(self, locals, filename)
+        self.init_history(histfile)
+
+    def init_history(self, histfile):
+        readline.parse_and_bind("tab: complete")
+        if hasattr(readline, "read_history_file"):
+            try:
+                readline.read_history_file(histfile)
+            except IOError:
+                pass
+            atexit.register(self.save_history, histfile)
+
+    def save_history(self, histfile):
+        readline.write_history_file(histfile)
+
+@_o
+def main():
+    print "Monocle", monocle.VERSION, "/", "Python", sys.version
+    print 'Type "help", "copyright", "credits" or "license" for more information.'
+    print "You can yield to Monocle oroutines at the prompt."
+    ic = HistoryConsole()
+    gs = dict(globals())
+    ls = {}
+    source = ""
+    while True:
+        try:
+            if source:
+                source += "\n"
+
+            cb = Callback()
+            def wait_for_input():
+                try:
+                    prompt = ">>> "
+                    if source:
+                        prompt = "... "
+                    s = ic.raw_input(prompt)
+                except EOFError:
+                    reactor.callFromThread(eventloop.halt)
+                    return
+                reactor.callFromThread(cb, s)
+            reactor.callInThread(wait_for_input)
+            source += yield cb
+
+            if "\n" in source and not source.endswith("\n"):
+                continue
+
+            try:
+                _c = code.compile_command(source)
+                if not _c:
+                    continue
+                eval(_c, gs, ls)
+            except SyntaxError, e:
+                if not "'yield' outside function" in str(e):
+                    raise
+
+                # it's a yield!
+
+                try:
+                    core_hack_source = "    __r = (" + source.replace("\n", "\n    ") + ")"
+                    hack_source = "def __g():\n" + core_hack_source + "\n    yield Return(locals())\n\n"
+                    _c = code.compile_command(hack_source)
+                except SyntaxError:
+                    # maybe the return value assignment wasn't okay
+                    core_hack_source = "    " + source.replace("\n", "\n    ")
+                    hack_source = "def __g():\n" + core_hack_source + "\n    yield Return(locals())\n\n"
+                    _c = code.compile_command(hack_source)
+
+                if not _c:
+                    continue
+
+                # make the locals global so __g can reach them
+                g_gs = dict(gs)
+                g_gs.update(ls)
+                eval(_c, g_gs, ls)
+
+                # now monoclize it and get the callback
+                _c = code.compile_command("monocle.o(__g)()", symbol="eval")
+                cb = eval(_c, gs, ls)
+                ls.pop('__g')
+                #print "=== waiting for %s ===" % cb
+                g_ls = yield cb
+                if '__r' in g_ls:
+                    r = g_ls.pop('__r')
+                    if r:
+                        print r
+                ls.update(g_ls)
+        except Exception:
+            traceback.print_exc()
+
+        source = ""
+
+
+if __name__ == '__main__':
+    monocle.launch(main)
+    eventloop.run()
