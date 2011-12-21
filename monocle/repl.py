@@ -53,9 +53,9 @@ def main():
                         prompt = "... "
                     s = ic.raw_input(prompt)
                 except EOFError:
-                    reactor.callFromThread(eventloop.halt)
+                    eventloop.queue_task(eventloop.halt)
                     return
-                reactor.callFromThread(cb, s)
+                eventloop.queue_task(cb, s)
             reactor.callInThread(wait_for_input)
             source += yield cb
 
