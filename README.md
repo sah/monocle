@@ -140,4 +140,5 @@ monocle is similar to, and takes inspiration from:
  * BitTorrent's yielddefer (used in the 5.x mainline client)
  * diesel
  * Go's goroutines (and CSP generally)
+ * Haskell's I/O monad
  * eventlet
