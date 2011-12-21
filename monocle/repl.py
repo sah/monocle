@@ -4,13 +4,13 @@ import readline
 import atexit
 import os
 import traceback
+from threading import Thread
 
 import monocle
 from monocle import _o, Return
-monocle.init("twisted")
+monocle.init(sys.argv[1])
 from monocle.stack import eventloop
 from monocle.callback import Callback
-from twisted.internet import reactor
 
 
 class HistoryConsole(code.InteractiveConsole):
@@ -53,10 +53,11 @@ def main():
                         prompt = "... "
                     s = ic.raw_input(prompt)
                 except EOFError:
-                    eventloop.queue_task(eventloop.halt)
+                    eventloop.queue_task(0, eventloop.halt)
                     return
-                eventloop.queue_task(cb, s)
-            reactor.callInThread(wait_for_input)
+                eventloop.queue_task(0, cb, s)
+
+            Thread(target=wait_for_input).start()
             source += yield cb
 
             if "\n" in source and not source.endswith("\n"):
