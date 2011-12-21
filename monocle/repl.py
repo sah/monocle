@@ -12,6 +12,8 @@ monocle.init(sys.argv[1])
 from monocle.stack import eventloop
 from monocle.callback import Callback
 
+# it's annoying to ever see these warnings at the repl, so tolerate a lot
+monocle.core.blocking_warn_threshold = 10000
 
 class HistoryConsole(code.InteractiveConsole):
     def __init__(self, locals=None, filename="<console>",
