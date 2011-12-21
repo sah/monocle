@@ -155,7 +155,7 @@ class HttpClient(object):
         self.port = None
 
     @_o
-    def connect(self, host, port, scheme='http'):
+    def connect(self, host, port, scheme='http', timeout=30):
         if self.client and not self.client.is_closed():
             self.client.close()
 
@@ -168,7 +168,7 @@ class HttpClient(object):
         self.scheme = scheme
         self.host = host
         self.port = port
-        yield self.client.connect(self.host, self.port)
+        yield self.client.connect(self.host, self.port, timeout=timeout)
 
     @_o
     def request(self, url, headers=None, method='GET', body=None):
