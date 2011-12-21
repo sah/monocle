@@ -24,6 +24,7 @@ logging.basicConfig(stream=sys.stderr,
 log = logging.getLogger("monocle")
 
 blocking_warn_threshold = 500 # ms
+tracebacks_elide_internals = True
 
 class Return(object):
     def __init__(self, *args):
@@ -40,31 +41,54 @@ class InvalidYieldException(Exception):
     pass
 
 
-def format_tb(e):
+def format_stack_lines(stack, elide_internals=tracebacks_elide_internals):
+    eliding = False
+    lines = []
+    for file, line, module, code in stack:
+        this_file = __file__
+        if this_file.endswith('.pyc'):
+            this_file = this_file[:-1]
+        if not file == this_file or not elide_internals:
+            eliding = False
+            lines.append("  File %s, line %s, in %s\n    %s" %
+                      (file, line, module, code))
+        else:
+            if not eliding:
+                eliding = True
+                lines.append("  -- eliding monocle internals --")
+    return lines
+
+
+def format_tb(e, elide_internals=tracebacks_elide_internals):
     s = ""
-    for tb in reversed(e._monocle['tracebacks']):
+    for tb, stack in reversed(e._monocle['tracebacks']):
         lines = tb.split('\n')
+        if stack:
+            stack_lines = format_stack_lines(stack, elide_internals)
+        else:
+            stack_lines = lines[1:-2]
         first = lines[0]
         last = lines[-2]
-        s += "\n" + '\n'.join(lines[1:-2])
+        s += "\n" + '\n'.join(stack_lines)
     return first + s + "\n" + last
 
 
-def _append_traceback(e, tb):
+def _append_traceback(e, tb, stack):
     if not hasattr(e, "_monocle"):
         e._monocle = {'tracebacks': []}
-    e._monocle['tracebacks'].append(tb)
+    e._monocle['tracebacks'].append((tb, stack))
     return e
 
 
 def _add_monocle_tb(e):
-    tb = traceback.format_exc()
-    return _append_traceback(e, tb)
+    if not hasattr(e, "_monocle"):
+        _append_traceback(e, traceback.format_exc(), traceback.extract_stack())
+    return e
 
 
 def _add_twisted_tb(f):
-    tb = f.getTraceback(elideFrameworkCode=True)
-    return _append_traceback(f.value, tb)
+    tb = f.getTraceback(elideFrameworkCode=tracebacks_elide_internals)
+    return _append_traceback(f.value, tb, None)
 
 
 def _monocle_chain(to_gen, g, callback):
@@ -185,12 +209,12 @@ def _o(f):
 o = _o
 
 
-def log_exception(e=None):
+def log_exception(e=None, elide_internals=tracebacks_elide_internals):
     if e is None:
         e = sys.exc_info()[1]
 
     if hasattr(e, '_monocle'):
-        log.error("%s\n%s", str(e), format_tb(e))
+        log.error("%s\n%s", str(e), format_tb(e, elide_internals=elide_internals))
     else:
         log.exception(e)
 
@@ -207,4 +231,5 @@ def launch(oroutine, *args, **kwargs):
     except GeneratorExit:
         raise
     except Exception:
-        log_exception()
+        log_exception(elide_internals=kwargs.get('elide_internals',
+                                                 tracebacks_elide_internals))
