@@ -1,4 +1,5 @@
 import sys
+import thread
 import functools
 
 from monocle import launch
@@ -41,12 +42,17 @@ class EventLoop(object):
     def __init__(self):
         singleton(self, "Twisted can only have one EventLoop (reactor)")
         self._halted = False
+        self._thread_ident = thread.get_ident()
 
     def queue_task(self, delay, callable, *args, **kw):
-        return reactor.callLater(delay, launch, callable, *args, **kw)
+        if thread.get_ident() != self._thread_ident:
+            reactor.callFromThread(reactor.callLater, delay, launch, callable, *args, **kw)
+        else:
+            reactor.callLater(delay, launch, callable, *args, **kw)
 
     def run(self):
         if not self._halted:
+            self._thread_ident = thread.get_ident()
             reactor.run()
 
     def halt(self):

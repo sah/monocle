@@ -1,5 +1,6 @@
 import tornado.ioloop
 import time
+import thread
 import functools
 
 from monocle import launch
@@ -15,8 +16,13 @@ class EventLoop(object):
         if delay == 0:
             self._tornado_ioloop.add_callback(task)
         else:
-            now = time.time()
-            self._tornado_ioloop.add_timeout(now + delay, task)
+            def queue():
+                now = time.time()
+                self._tornado_ioloop.add_timeout(now + delay, task)
+            if thread.get_ident() != self._tornado_ioloop._thread_ident:
+                self._tornado_ioloop.add_callback(queue)
+            else:
+                queue()
 
     def run(self):
         self._tornado_ioloop.start()
