@@ -248,6 +248,7 @@ class Client(TornadoConnection):
             def _on_timeout():
                 cb = self._stack_conn.connect_cb
                 self._stack_conn.connect_cb = None
+                self._stack_conn.disconnect()
                 cb(ConnectionLost("connection timed out after %s seconds" % timeout))
             self._timeout = iostream.io_loop.add_timeout(time.time() + timeout,
                                                          _on_timeout)
