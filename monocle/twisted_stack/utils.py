@@ -9,3 +9,4 @@ def cb_to_df(cb):
         else:
             df.callback(v)
     cb.add(call_deferred_back)
+    return df
