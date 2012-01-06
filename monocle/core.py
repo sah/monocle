@@ -2,11 +2,11 @@
 
 import sys
 import types
-import traceback
 import logging
 import traceback
 import time
 import inspect
+import os.path
 
 from callback import Callback, defer
 
@@ -47,17 +47,27 @@ class InvalidYieldException(Exception):
     pass
 
 
+def is_eventloop_stack(stack):
+    this_dir = os.path.dirname(__file__)
+    for file, line, context, code in stack:
+        if (file.startswith(this_dir) and
+            file.endswith("eventloop.py") and
+            context == 'run'):
+            return True
+    return False
+
+
 def format_stack_lines(stack, elide_internals=tracebacks_elide_internals):
     eliding = False
     lines = []
-    for file, line, module, code in stack:
+    for file, line, context, code in stack:
         this_file = __file__
         if this_file.endswith('.pyc'):
             this_file = this_file[:-1]
         if not file == this_file or not elide_internals:
             eliding = False
             lines.append("  File %s, line %s, in %s\n    %s" %
-                      (file, line, module, code))
+                         (file, line, context, code))
         else:
             if not eliding:
                 eliding = True
@@ -67,15 +77,31 @@ def format_stack_lines(stack, elide_internals=tracebacks_elide_internals):
 
 def format_tb(e, elide_internals=tracebacks_elide_internals):
     s = ""
-    for tb, stack in reversed(e._monocle['tracebacks']):
+    for i, (tb, stack) in enumerate(reversed(e._monocle['tracebacks'])):
         lines = tb.split('\n')
-        if stack:
+
+        first = lines[0] # "Traceback (most recent call last)"
+        last = lines[-2] # Line describing the exception
+
+        stack_lines = []
+        if not is_eventloop_stack(stack):
             stack_lines = format_stack_lines(stack, elide_internals)
-        else:
-            stack_lines = lines[1:-2]
-        first = lines[0]
-        last = lines[-2]
-        s += "\n" + '\n'.join(stack_lines)
+
+        # 3 because of the "Traceback (most recent call last)" line,
+        # plus two lines describing the g.throw that got us the
+        # exception
+        lines = stack_lines + lines[3:-2]
+
+        if is_eventloop_stack(stack):
+            if elide_internals:
+                lines += ["  -- trampolined off eventloop --"]
+                if i + 1 == len(e._monocle['tracebacks']):
+                    # the last one is details on how we got called
+                    lines += format_stack_lines(stack[2:], elide_internals)
+            else:
+                lines += format_stack_lines(stack, elide_internals)
+
+        s += "\n" + '\n'.join(lines)
     return first + s + "\n" + last
 
 
@@ -87,8 +113,15 @@ def _append_traceback(e, tb, stack):
 
 
 def _add_monocle_tb(e):
-    if not hasattr(e, "_monocle"):
-        _append_traceback(e, traceback.format_exc(), traceback.extract_stack())
+    tb = traceback.format_exc()
+    stack = traceback.extract_stack()
+
+    # if it's not an eventloop stack, the first one we get is
+    # comprehensive and future ones are higher up the stack.  if it is
+    # an eventloop stack, we need to add it to reconstruct how we got
+    # to the first one.
+    if is_eventloop_stack(stack) or not hasattr(e, "_monocle"):
+        _append_traceback(e, tb, stack)
     return e
 
 
