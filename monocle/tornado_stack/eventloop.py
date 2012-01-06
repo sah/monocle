@@ -9,6 +9,7 @@ class EventLoop(object):
     def __init__(self):
         self._tornado_ioloop = tornado.ioloop.IOLoop.instance()
         self.READ = self._tornado_ioloop.READ
+        self._thread_ident = thread.get_ident()
 
     def queue_task(self, delay, callable, *args, **kw):
         def task():
@@ -19,7 +20,7 @@ class EventLoop(object):
             def queue():
                 now = time.time()
                 self._tornado_ioloop.add_timeout(now + delay, task)
-            if thread.get_ident() != self._tornado_ioloop._thread_ident:
+            if thread.get_ident() != self._thread_ident:
                 self._tornado_ioloop.add_callback(queue)
             else:
                 queue()
