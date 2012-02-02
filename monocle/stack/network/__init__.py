@@ -36,6 +36,7 @@ class Connection(object):
         self._stack_conn = stack_conn
         self.writing = False
         self._flush_cb = Callback()
+        self.write_encoding = 'utf-8'
 
     @_o
     def read_some(self):
@@ -78,6 +79,8 @@ class Connection(object):
         return self.read_until("\n")
 
     def write(self, data):
+        if isinstance(data, unicode):
+            data = data.encode(self.write_encoding)
         self._check_closed()
         self.writing = True
         self._stack_conn.write(data)
