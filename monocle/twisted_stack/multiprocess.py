@@ -1,7 +1,11 @@
+from multiprocessing import Process, Pipe
+
 from monocle.twisted_stack.network import add_service, Client, ConnectionLost, _Connection, Factory, reactor
 from twisted.internet import ssl
 
-log = logging.getLogger("monocle.twisted_stack.multiprocess")
+from monocle.stack.multiprocess import launch_proc
+
+log = logging.getLogger(__name__)
 
 
 class PipeForTwisted(object):
@@ -50,3 +54,11 @@ class PipeChannel(object):
         if lost:
             raise Exception("connection lost: %s" % reason)
         yield Return(self.pipe.recv())
+
+
+def launch_proc_with_pipes(target, *args, **kwargs):
+    child, parent = Pipe()
+    pc = PipeChannel(parent)
+    p = launch_proc(target, pc, *args, **kwargs)
+    cc = PipeChannel(child)
+    return p, cc

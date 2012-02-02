@@ -6,7 +6,7 @@ import sys
 import os
 import logging
 import cPickle as pickle
-from multiprocessing import Process, Pipe
+from multiprocessing import Process
 from functools import partial
 from collections import deque
 
@@ -90,19 +90,11 @@ def make_subchannels(chan, subchans):
 
 def launch_proc(target, *args, **kwargs):
     def proc_wrapper():
-        launch(target, *args, **kwargs)
+        eventloop.queue_task(0, target, *args, **kwargs)
         eventloop.run()
     p = Process(target=proc_wrapper)
     p.start()
     return p
-
-
-def launch_proc_with_pipes(target, *args, **kwargs):
-    child, parent = Pipe()
-    pc = PipeChannel(parent)
-    p = launch_proc(target, pc, *args, **kwargs)
-    cc = PipeChannel(child)
-    return p, cc
 
 
 @_o
@@ -141,6 +133,19 @@ def launch_proc_with_sockets(target, *args, **kwargs):
     yield service.stop()
     chan = SocketChannel(conn)
     yield Return(p, chan)
+
+
+@_o
+def run_in_proc(target, *args, **kwargs):
+    @_o
+    def wrapper(chan):
+        r = yield target(*args, **kwargs)
+        yield chan.send(r)
+        eventloop.halt()
+    p, chan = yield launch_proc_with_sockets(wrapper)
+    r = yield chan.recv()
+    p.join()
+    yield Return(r)
 
 
 if monocle._stack_name == 'twisted':
