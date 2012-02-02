@@ -244,17 +244,21 @@ class Client(TornadoConnection):
             iostream = SSLIOStream(s, ssl_options=self.ssl_options)
         else:
             iostream = IOStream(s)
+        self._stack_conn = _Connection(iostream)
+        self._stack_conn.attach(self)
+        self._stack_conn.connect((host, port))
+
         if timeout is not None:
+            cb = self._stack_conn.connect_cb
             def _on_timeout():
-                cb = self._stack_conn.connect_cb
+                if hasattr(cb, 'result'):
+                    return
                 self._stack_conn.connect_cb = None
                 self._stack_conn.disconnect()
                 cb(ConnectionLost("connection timed out after %s seconds" % timeout))
             self._timeout = iostream.io_loop.add_timeout(time.time() + timeout,
                                                          _on_timeout)
-        self._stack_conn = _Connection(iostream)
-        self._stack_conn.attach(self)
-        self._stack_conn.connect((host, port))
+
         yield self._stack_conn.connect_cb
 
 
