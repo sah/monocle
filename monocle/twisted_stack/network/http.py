@@ -5,7 +5,7 @@
 import urlparse
 import logging
 
-from monocle import _o, Return, VERSION, launch
+from monocle import _o, Return, VERSION, launch, log_exception
 from monocle.callback import Callback
 from monocle.stack.network.http import HttpHeaders, HttpResponse, write_request, read_response
 from monocle.twisted_stack.eventloop import reactor
@@ -32,19 +32,18 @@ class _HttpServerResource(resource.Resource):
             try:
                 code, headers, content = yield launch(self.handler, request)
             except Exception, e:
-                print type(e), str(e)
-                log.log_exception()
+                log_exception()
                 code, headers, content = 500, {}, "500 Internal Server Error"
             try:
                 request.setResponseCode(code)
                 headers.setdefault('Server', 'monocle/%s' % VERSION)
                 for name, value in headers.iteritems():
-                    print name, value
                     request.setHeader(name, value)
                 request.write(content)
                 request.finish()
             except Exception, e:
-                print type(e), str(e)
+                log_exception()
+                raise
         _handler(request)
         return server.NOT_DONE_YET
 

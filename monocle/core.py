@@ -248,14 +248,13 @@ def _o(f):
 o = _o
 
 
-def log_exception(e=None, elide_internals=tracebacks_elide_internals):
-    if e is None:
-        e = sys.exc_info()[1]
+def log_exception(msg="", elide_internals=tracebacks_elide_internals):
+    e = sys.exc_info()[1]
 
     if hasattr(e, '_monocle'):
-        log.error("%s\n%s", str(e), format_tb(e, elide_internals=elide_internals))
+        log.error("%s\n%s", msg, format_tb(e, elide_internals=elide_internals))
     else:
-        log.exception(e)
+        log.exception(msg)
 
 
 @_o
