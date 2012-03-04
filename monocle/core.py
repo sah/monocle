@@ -7,6 +7,7 @@ import traceback
 import time
 import inspect
 import os.path
+import functools
 
 from callback import Callback, defer
 
@@ -242,9 +243,10 @@ def _o(f):
                 # this too
                 raise Exception('fail')
     """
+    @functools.wraps(f)
     def unwindGenerator(*args, **kwargs):
         return maybeCallbackGenerator(f, *args, **kwargs)
-    return mergeFunctionMetadata(f, unwindGenerator)
+    return unwindGenerator
 o = _o
 
 
