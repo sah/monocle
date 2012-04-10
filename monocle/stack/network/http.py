@@ -117,7 +117,7 @@ def write_request(conn, method, path, headers, body=None):
     for k, v in headers.iteritems():
         yield conn.write("%s: %s\r\n" % (k, v))
     yield conn.write("\r\n")
-    if body is not None:
+    if body:
         yield conn.write(body)
 
 

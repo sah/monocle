@@ -1,6 +1,6 @@
 import monocle
 from monocle import _o, Return
-from monocle.callback import Callback
+from monocle.callback import Callback, defer
 
 
 class ConnectionLost(Exception):
@@ -82,6 +82,9 @@ class Connection(object):
         if isinstance(data, unicode):
             data = data.encode(self.write_encoding)
         self._check_closed()
+        if data == "":
+            # twisted won't ever tell us we flushed writing ""
+            return defer(None)
         self.writing = True
         self._stack_conn.write(data)
         return self.flush()
