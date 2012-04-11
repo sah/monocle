@@ -1,6 +1,8 @@
 import collections
 
 from monocle import _o, Return
+from monocle.stack.network import ConnectionLost
+
 
 class HttpHeaders(collections.MutableMapping):
     def __init__(self, headers=None):
@@ -126,11 +128,15 @@ def read_response(conn):
     data = yield conn.read_until("\r\n\r\n")
     proto, code, msg, headers = parse_response(data)
 
+    proto = proto.lower()
     content_length = int(headers.get('Content-Length', 0))
     body = ""
-    if content_length:
-        body = yield conn.read(content_length)
-    elif headers.get('Transfer-Encoding') == 'chunked':
+
+    # Messages MUST NOT include both a Content-Length header field and
+    # a non-identity transfer-coding. If the message does include a
+    # non- identity transfer-coding, the Content-Length MUST be
+    # ignored.
+    if headers.get('Transfer-Encoding', '').lower() == 'chunked':
         while True:
             line = yield conn.read_until("\r\n")
             line = line[:-2]
@@ -139,6 +145,18 @@ def read_response(conn):
             body += yield conn.read(chunk_len)
             yield conn.read_until("\r\n")
             if not chunk_len:
+                break
+    elif content_length:
+        body = yield conn.read(content_length)
+    elif ((proto == 'http/1.0' and
+           not headers.get('Connection', '').lower() == 'keep-alive')
+          or
+          (proto == 'http/1.1' and
+           headers.get('Connection', '').lower() == 'close')):
+        while True:
+            try:
+                body += yield conn.read_some()
+            except ConnectionLost:
                 break
 
     yield Return(HttpResponse(code, msg, headers, body, proto))
@@ -182,8 +200,9 @@ class HttpClient(object):
         if parts.query:
             path += '?' + parts.query
 
-        if not (scheme, host, port) == (self.scheme, self.host, self.port):
-            raise HttpException("URL doesn't match connected server")
+        if scheme != self.scheme:
+            raise HttpException("URL is %s but connection is %s" %
+                                (scheme, self.scheme))
 
         if not headers:
             headers = HttpHeaders()
