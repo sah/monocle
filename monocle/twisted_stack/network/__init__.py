@@ -75,10 +75,13 @@ class _Connection(Protocol):
         return self.read_cb is not None
 
     def closed(self):
-        return not (self.transport and self.transport.connected and not self.transport.disconnecting)
+        return not (self.transport and
+                    self.transport.connected and
+                    not self.transport.disconnecting)
 
     def disconnect(self):
         if self.transport:
+            self.transport.unregisterProducer()
             self.transport.loseConnection()
 
 
