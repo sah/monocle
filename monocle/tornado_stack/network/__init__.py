@@ -5,14 +5,12 @@
 import errno
 import socket
 import new
-import time
 
 try:
-    import ssl # Python 2.6+
+    import ssl  # Python 2.6+
 except ImportError:
     ssl = None
 
-import tornado.ioloop
 from tornado.iostream import IOStream, SSLIOStream
 
 from monocle import _o, launch
@@ -256,8 +254,7 @@ class Client(TornadoConnection):
                 self._stack_conn.connect_cb = None
                 self._stack_conn.disconnect()
                 cb(ConnectionLost("connection timed out after %s seconds" % timeout))
-            self._timeout = iostream.io_loop.add_timeout(time.time() + timeout,
-                                                         _on_timeout)
+            evlp.queue_task(timeout, _on_timeout)
 
         yield self._stack_conn.connect_cb
 
