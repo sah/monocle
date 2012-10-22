@@ -2,18 +2,16 @@
 #
 # by Steven Hazel
 
-import urlparse
-
 import tornado.httpclient
 import tornado.httpserver
 
 from monocle import _o, Return, VERSION, launch
 from monocle.callback import Callback
-from monocle.stack.network import Client
 from monocle.stack.network.http import HttpHeaders, HttpClient
 
 
 class HttpException(Exception): pass
+
 
 class HttpClient(HttpClient):
     @classmethod
@@ -23,7 +21,8 @@ class HttpClient(HttpClient):
         req = tornado.httpclient.HTTPRequest(url,
                                              method=method,
                                              headers=headers or {},
-                                             body=body)
+                                             body=body,
+                                             request_timeout=self.timeout)
         cb = Callback()
         _http_client.fetch(req, cb)
         response = yield cb

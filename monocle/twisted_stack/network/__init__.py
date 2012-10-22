@@ -162,8 +162,8 @@ class Client(Connection):
         self._closed(msg)
 
     @_o
-    def connect(self, host, port, timeout=30):
-        self._connection_timeout = timeout
+    def connect(self, host, port):
+        self._connection_timeout = self.timeout
         self._stack_conn = _Connection()
         self._stack_conn.attach(self)
         self._stack_conn.connect_cb = Callback()

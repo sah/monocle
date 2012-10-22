@@ -1,6 +1,5 @@
 import sys
 import thread
-import functools
 
 from monocle import launch
 

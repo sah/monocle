@@ -1,11 +1,10 @@
 import monocle
 from monocle import _o, Return
 from monocle.callback import Callback, defer
-
+from monocle.stack import eventloop as evlp
 
 class ConnectionLost(Exception):
     pass
-
 
 # Connection takes a stack_conn, which should have this interface:
 #
@@ -31,19 +30,42 @@ class ConnectionLost(Exception):
 #
 # buffer: string buffer which grows before read_cb is called
 
+
 class Connection(object):
     def __init__(self, stack_conn=None):
         self._stack_conn = stack_conn
         self.writing = False
-        self._flush_cb = Callback()
+        self.flush_cb = Callback()
         self.write_encoding = 'utf-8'
+        self.timeout = None
+
+    def _time_out(self, cb, timeout):
+        if hasattr(cb, 'result'):
+            return
+        if cb == self._stack_conn.read_cb:
+            self._stack_conn.read_cb = None
+        elif cb == self.flush_cb:
+            self.flush_cb = None
+        elif cb == self._stack_conn.connect_cb:
+            self._stack_conn.connect_cb = None
+        self._stack_conn.disconnect()
+        cb(ConnectionLost("connection timed out after %s seconds" % timeout))
+
+    def _queue_timeout(self, cb):
+        if self.timeout is not None:
+            evlp.queue_task(self.timeout,
+                            self._time_out,
+                            cb,
+                            self.timeout)
 
     @_o
     def read_some(self):
         self._check_reading()
+
         if not self._stack_conn.buffer:
             self._check_closed()
             self._stack_conn.resume()
+            self._queue_timeout(self._stack_conn.read_cb)
             yield self._stack_conn.read_cb
         tmp = self._stack_conn.buffer
         self._stack_conn.buffer = ""
@@ -52,9 +74,11 @@ class Connection(object):
     @_o
     def read(self, size):
         self._check_reading()
+
         while len(self._stack_conn.buffer) < size:
             self._check_closed()
             self._stack_conn.resume()
+            self._queue_timeout(self._stack_conn.read_cb)
             yield self._stack_conn.read_cb
         tmp = self._stack_conn.buffer[:size]
         self._stack_conn.buffer = self._stack_conn.buffer[size:]
@@ -63,6 +87,7 @@ class Connection(object):
     @_o
     def read_until(self, s):
         self._check_reading()
+
         while True:
             size = self._stack_conn.buffer.find(s)
             if size != -1:
@@ -70,6 +95,7 @@ class Connection(object):
                 break
             self._check_closed()
             self._stack_conn.resume()
+            self._queue_timeout(self._stack_conn.read_cb)
             yield self._stack_conn.read_cb
         tmp = self._stack_conn.buffer[:size]
         self._stack_conn.buffer = self._stack_conn.buffer[size:]
@@ -87,17 +113,19 @@ class Connection(object):
             return defer(None)
         self.writing = True
         self._stack_conn.write(data)
-        return self.flush()
+        cb = self.flush()
+        self._queue_timeout(cb)
+        return cb
 
     def _write_flushed(self, result=None):
         self.writing = False
-        cb = self._flush_cb
-        self._flush_cb = Callback()
+        cb = self.flush_cb
+        self.flush_cb = Callback()
         cb(result)
 
     def flush(self):
         self._check_closed()
-        cb = self._flush_cb
+        cb = self.flush_cb
         if not self.writing:
             self._write_flushed()
         return cb

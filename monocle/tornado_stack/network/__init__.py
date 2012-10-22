@@ -236,7 +236,7 @@ class Client(TornadoConnection):
         self.ssl_options = None
 
     @_o
-    def connect(self, host, port, timeout=30):
+    def connect(self, host, port):
         s = socket.socket()
         if self.ssl_options is not None:
             iostream = SSLIOStream(s, ssl_options=self.ssl_options)
@@ -246,15 +246,8 @@ class Client(TornadoConnection):
         self._stack_conn.attach(self)
         self._stack_conn.connect((host, port))
 
-        if timeout is not None:
-            cb = self._stack_conn.connect_cb
-            def _on_timeout():
-                if hasattr(cb, 'result'):
-                    return
-                self._stack_conn.connect_cb = None
-                self._stack_conn.disconnect()
-                cb(ConnectionLost("connection timed out after %s seconds" % timeout))
-            evlp.queue_task(timeout, _on_timeout)
+        if self.timeout is not None:
+            self._queue_timeout(self._stack_conn.connect_cb)
 
         yield self._stack_conn.connect_cb
 

@@ -171,9 +171,24 @@ class HttpClient(object):
         self.scheme = None
         self.host = None
         self.port = None
+        self._timeout = None
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    @timeout.setter
+    def timeout_setter(self, value):
+        self._timeout = value
+        if self.client:
+            self.client.timeout = value
 
     @_o
-    def connect(self, host, port, scheme='http', timeout=30):
+    def connect(self, host, port, scheme='http', timeout=None):
+        if timeout is not None:
+            # this parameter is deprecated
+            self.timeout = None
+
         if self.client and not self.client.is_closed():
             self.client.close()
 
@@ -186,7 +201,8 @@ class HttpClient(object):
         self.scheme = scheme
         self.host = host
         self.port = port
-        yield self.client.connect(self.host, self.port, timeout=timeout)
+        self.client.timeout = self._timeout
+        yield self.client.connect(self.host, self.port)
 
     @_o
     def request(self, url, headers=None, method='GET', body=None):
@@ -195,7 +211,6 @@ class HttpClient(object):
         if parts.scheme and parts.scheme not in ['http', 'https']:
             raise HttpException('unsupported url scheme %s' % parts.scheme)
         host = parts.hostname or self.host
-        port = parts.port or self.port
         path = parts.path
         if parts.query:
             path += '?' + parts.query
@@ -226,10 +241,8 @@ class HttpClient(object):
     def query(cls, url, headers=None, method='GET', body=None):
         self = cls()
         parts = urlparse.urlsplit(url)
-        scheme = parts.scheme
         host = parts.hostname
         port = parts.port or self.DEFAULT_PORTS[parts.scheme]
-        path = '/' + url.split('/', 3)[3]
 
         if not self.client or self.client.is_closed():
             yield self.connect(host, port, scheme=parts.scheme)
