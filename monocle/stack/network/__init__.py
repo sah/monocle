@@ -38,8 +38,10 @@ class Connection(object):
         self.flush_cb = Callback()
         self.write_encoding = 'utf-8'
         self.timeout = None
+        self._current_timeout = None
 
     def _time_out(self, cb, timeout):
+        self._current_timeout = None
         if hasattr(cb, 'result'):
             return
         if cb == self._stack_conn.read_cb:
@@ -53,10 +55,12 @@ class Connection(object):
 
     def _queue_timeout(self, cb):
         if self.timeout is not None:
-            evlp.queue_task(self.timeout,
-                            self._time_out,
-                            cb,
-                            self.timeout)
+            if self._current_timeout:
+                self._current_timeout.cancel()
+            self._current_timeout = evlp.queue_task(self.timeout,
+                                                    self._time_out,
+                                                    cb,
+                                                    self.timeout)
 
     @_o
     def read_some(self):
@@ -131,6 +135,9 @@ class Connection(object):
         return cb
 
     def _closed(self, reason):
+        if self._current_timeout:
+            self._current_timeout.cancel()
+            self._current_timeout = None
         cl = ConnectionLost(str(reason))
         cl.original = reason
         if self._stack_conn.connect_cb:

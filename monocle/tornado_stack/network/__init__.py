@@ -15,7 +15,7 @@ from tornado.iostream import IOStream, SSLIOStream
 
 from monocle import _o, launch
 from monocle.callback import Callback
-from monocle.stack.network import Connection, ConnectionLost
+from monocle.stack.network import Connection
 from monocle.tornado_stack.eventloop import evlp
 
 
@@ -143,15 +143,21 @@ class TornadoConnection(Connection):
 
     def read_some(self):
         self._check_reading()
-        return self._stack_conn.read_some()
+        cb = self._stack_conn.read_some()
+        self._queue_timeout(cb)
+        return cb
 
     def read(self, size):
         self._check_reading()
-        return self._stack_conn.read(size)
+        cb = self._stack_conn.read(size)
+        self._queue_timeout(cb)
+        return cb
 
     def read_until(self, s):
         self._check_reading()
-        return self._stack_conn.read_until(s)
+        cb = self._stack_conn.read_until(s)
+        self._queue_timeout(cb)
+        return cb
 
 
 class Service(object):

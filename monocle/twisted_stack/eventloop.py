@@ -37,6 +37,14 @@ def singleton(object, message="singleton class already instantiated",
     instantiated.append(object.__class__)
 
 
+class Task(object):
+    def __init__(self, df):
+        self._df = df
+
+    def cancel(self):
+        self._df.cancel()
+
+
 class EventLoop(object):
     def __init__(self):
         singleton(self, "Twisted can only have one EventLoop (reactor)")
@@ -47,7 +55,8 @@ class EventLoop(object):
         if thread.get_ident() != self._thread_ident:
             reactor.callFromThread(reactor.callLater, delay, launch, callable, *args, **kw)
         else:
-            reactor.callLater(delay, launch, callable, *args, **kw)
+            df = reactor.callLater(delay, launch, callable, *args, **kw)
+            return Task(df)
 
     def run(self):
         if not self._halted:

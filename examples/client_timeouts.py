@@ -21,6 +21,10 @@ def main():
     """
     c.timeout = 1
     yield c.connect('google.com', 80)
+    c.timeout = 0
+    x = yield c.read(40000)
+    print x
+
 
 monocle.launch(main)
 eventloop.run()

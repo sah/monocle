@@ -5,6 +5,15 @@ import thread
 from monocle import launch
 
 
+class Task(object):
+    def __init__(self, tornado_ioloop, timeout):
+        self._timeout = timeout
+        self._tornado_ioloop = tornado_ioloop
+
+    def cancel(self):
+        self._tornado_ioloop.remove_timeout(self._timeout)
+
+
 class EventLoop(object):
     def __init__(self):
         self._tornado_ioloop = tornado.ioloop.IOLoop.instance()
@@ -14,16 +23,15 @@ class EventLoop(object):
     def queue_task(self, delay, callable, *args, **kw):
         def task():
             return launch(callable, *args, **kw)
-        if delay == 0:
-            self._tornado_ioloop.add_callback(task)
+        def queue():
+            now = time.time()
+            timeout = self._tornado_ioloop.add_timeout(now + delay, task)
+            return Task(self._tornado_ioloop, timeout)
+
+        if thread.get_ident() != self._thread_ident:
+            self._tornado_ioloop.add_callback(queue)
         else:
-            def queue():
-                now = time.time()
-                self._tornado_ioloop.add_timeout(now + delay, task)
-            if thread.get_ident() != self._thread_ident:
-                self._tornado_ioloop.add_callback(queue)
-            else:
-                queue()
+            return queue()
 
     def run(self):
         self._tornado_ioloop.start()
