@@ -41,7 +41,13 @@ class _HttpServerResource(resource.Resource):
                 for name, value in headers.iteritems():
                     request.setHeader(name, value)
                 request.write(content)
-                request.finish()
+
+                if not request._disconnected:
+                    # close connections with a 'close' header
+                    if headers.get('Connection').lower() == 'close':
+                        request.channel.persistent = False
+
+                    request.finish()
             except Exception:
                 log_exception()
                 raise
