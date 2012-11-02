@@ -42,7 +42,7 @@ class HttpHeaders(collections.MutableMapping):
         key = key.lower()
         if not key in self.keys:
             raise KeyError(key)
-        vals = [v for k, v in self.headers if k==key]
+        vals = [v for k, v in self.headers if k == key]
         if len(vals) == 1:
             return vals[0]
         else:
@@ -132,6 +132,7 @@ def read_response(conn):
     content_length = int(headers.get('Content-Length', 0))
     body = ""
 
+    # From rfc2616 section 4.4:
     # Messages MUST NOT include both a Content-Length header field and
     # a non-identity transfer-coding. If the message does include a
     # non- identity transfer-coding, the Content-Length MUST be
