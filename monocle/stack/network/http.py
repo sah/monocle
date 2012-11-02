@@ -256,6 +256,23 @@ class HttpClient(object):
         yield Return(result)
 
 
+# Takes a response return value like:
+# "this is a body"
+# 404
+# (200, "this is a body")
+# (200, {"headers": "here"}, "this is a body")
+#
+# ...and converts that to a full (code, headers, body) tuple.
+def extract_response(value):
+    if isinstance(value, basestring):
+        return (200, HttpHeaders(), value)
+    if isinstance(value, int):
+        return (value, HttpHeaders(), "")
+    if len(value) == 2:
+        return (value[0], HttpHeaders(), value[1])
+    return value
+
+
 import monocle
 if monocle._stack_name == 'twisted':
     from monocle.twisted_stack.network.http import *

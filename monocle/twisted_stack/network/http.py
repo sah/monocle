@@ -7,7 +7,7 @@ import logging
 
 from monocle import _o, Return, VERSION, launch, log_exception
 from monocle.callback import Callback
-from monocle.stack.network.http import HttpHeaders, HttpResponse, write_request, read_response
+from monocle.stack.network.http import HttpHeaders, HttpResponse, write_request, read_response, extract_response
 from monocle.twisted_stack.eventloop import reactor
 from monocle.twisted_stack.network import Service, Client, SSLClient
 
@@ -30,8 +30,9 @@ class _HttpServerResource(resource.Resource):
         @_o
         def _handler(request):
             try:
-                code, headers, content = yield launch(self.handler, request)
-            except Exception, e:
+                value = yield launch(self.handler, request)
+                code, headers, content = extract_response(value)
+            except Exception:
                 log_exception()
                 code, headers, content = 500, {}, "500 Internal Server Error"
             try:
@@ -41,7 +42,7 @@ class _HttpServerResource(resource.Resource):
                     request.setHeader(name, value)
                 request.write(content)
                 request.finish()
-            except Exception, e:
+            except Exception:
                 log_exception()
                 raise
         _handler(request)
@@ -56,4 +57,3 @@ class HttpServer(Service):
         self.backlog = backlog
         self.ssl_options = None
         self._twisted_listening_port = None
-

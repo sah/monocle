@@ -7,7 +7,7 @@ import tornado.httpserver
 
 from monocle import _o, Return, VERSION, launch
 from monocle.callback import Callback
-from monocle.stack.network.http import HttpHeaders, HttpClient
+from monocle.stack.network.http import HttpHeaders, HttpClient, extract_response
 
 
 class HttpException(Exception): pass
@@ -38,7 +38,8 @@ class HttpServer(object):
         @_o
         def _handler(request):
             try:
-                code, headers, content = yield launch(self.handler, request)
+                value = yield launch(self.handler, request)
+                code, headers, content = extract_response(value)
             except:
                 code, headers, content = 500, {}, "500 Internal Server Error"
             request.write("HTTP/1.1 %s\r\n" % code)
@@ -53,4 +54,3 @@ class HttpServer(object):
             _handler,
             io_loop=el._tornado_ioloop)
         self._http_server.listen(self.port)
-
