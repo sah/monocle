@@ -44,7 +44,7 @@ class _HttpServerResource(resource.Resource):
 
                 if not request._disconnected:
                     # close connections with a 'close' header
-                    if headers.get('Connection').lower() == 'close':
+                    if headers.get('Connection', '').lower() == 'close':
                         request.channel.persistent = False
 
                     request.finish()
