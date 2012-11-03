@@ -14,7 +14,7 @@ in older versions of Python.  (Versions before 2.7 require the
 Here's a simple monocle program that runs two concurrent lightweight
 processes (called "o-routines") using Tornado's event loop.  One is an
 HTTP server, and the other makes an HTTP request:
-
+```python
     import monocle
     monocle.init("tornado")
 
@@ -40,12 +40,12 @@ HTTP server, and the other makes an HTTP request:
     add_service(HttpServer(hello_http, 8088))
     monocle.launch(request)
     eventloop.run()
-
+```
 ## @_o
 
 It's important that code be dapper and well-dressed, so if you prefer,
 you can don the monocle and use this handy shortcut for `@monocle.o`:
-
+```python
     from monocle import _o
 
     @_o
@@ -53,7 +53,7 @@ you can don the monocle and use this handy shortcut for `@monocle.o`:
         client = HttpClient()
         resp = yield client.request('http://127.0.0.1:8088/')
         print resp.code, resp.body
-
+```
 It's true, this violates Python's convention that underscores indicate
 variables for internal use.  But rules are for breaking.  Live a
 little.
@@ -64,7 +64,7 @@ Event-driven code can be efficient and easy to reason about, but it
 often splits up procedures in an unpleasant way.  Here's an example of
 a blocking function to read a request from a user, query a database,
 and return a result:
-
+```python
     def do_cmd(conn):
         cmd = conn.read_until("\n")
         if cmd.type == "get-address":
@@ -72,9 +72,9 @@ and return a result:
             conn.write(user.address)
         else:
             conn.write("unknown command")
-
+```
 Here's the same thing in event-driven style, using callbacks:
-
+```python
     def get_cmd(conn):
         conn.read_until("\n", callback=handle_cmd)
 
@@ -89,7 +89,7 @@ Here's the same thing in event-driven style, using callbacks:
 
     def handle_user_query_result(conn, user):
         conn.write(user.address)
-
+```
 What started out as a single function in the blocking code has
 expanded here into four functions (counting the `callback` closure
 that captures `conn` in `handle_cmd`).  In real event-driven code,
@@ -105,7 +105,7 @@ called generators.  Monocle uses generators to straighten out
 event-driven code.
 
 Here's the monocle equivalent of the event-based code above:
-
+```python
     @_o
     def do_cmd(conn):
         cmd = yield conn.read_until("\n")
@@ -114,7 +114,7 @@ Here's the monocle equivalent of the event-based code above:
             yield conn.write(user.address)
         else:
             yield conn.write("unknown command")
-
+```
 It's event-driven for efficient concurrency, but otherwise looks a lot
 like the original blocking code.  Each time you see the word `yield`
 in the code above, the o-routine is returning back up to the event
