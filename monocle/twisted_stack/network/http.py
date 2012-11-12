@@ -36,18 +36,20 @@ class _HttpServerResource(resource.Resource):
                 log_exception()
                 code, headers, content = 500, {}, "500 Internal Server Error"
             try:
+                if request._disconnected:
+                    return
+
                 request.setResponseCode(code)
                 headers.setdefault('Server', 'monocle/%s' % VERSION)
                 for name, value in headers.iteritems():
                     request.setHeader(name, value)
                 request.write(content)
 
-                if not request._disconnected:
-                    # close connections with a 'close' header
-                    if headers.get('Connection', '').lower() == 'close':
-                        request.channel.persistent = False
+                # close connections with a 'close' header
+                if headers.get('Connection', '').lower() == 'close':
+                    request.channel.persistent = False
 
-                    request.finish()
+                request.finish()
             except Exception:
                 log_exception()
                 raise
