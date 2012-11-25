@@ -40,18 +40,22 @@ class Connection(object):
         self.timeout = None
         self._current_timeout = None
 
-    def _time_out(self, cb, timeout):
+    def _time_out(self, instigating_cb, timeout):
         self._current_timeout = None
-        if hasattr(cb, 'result'):
+        if hasattr(instigating_cb, 'result'):
             return
-        if cb == self._stack_conn.read_cb:
-            self._stack_conn.read_cb = None
-        elif cb == self.flush_cb:
-            self.flush_cb = None
-        elif cb == self._stack_conn.connect_cb:
-            self._stack_conn.connect_cb = None
+
+        current_cbs = [self._stack_conn.read_cb,
+                       self.flush_cb,
+                       self._stack_conn.connect_cb]
+        self._stack_conn.read_cb = None
+        self.flush_cb = None
+        self._stack_conn.connect_cb = None
         self._stack_conn.disconnect()
-        cb(ConnectionLost("connection timed out after %s seconds" % timeout))
+        for cb in current_cbs:
+            if cb and not hasattr(cb, 'result'):
+                cb(ConnectionLost("connection timed out after %s seconds" %
+                                  timeout))
 
     def _queue_timeout(self, cb):
         if self.timeout is not None:
