@@ -129,7 +129,8 @@ class Connection(object):
         self.writing = False
         cb = self.flush_cb
         self.flush_cb = Callback()
-        cb(result)
+        if cb:
+            cb(result)
 
     def flush(self):
         self._check_closed()
