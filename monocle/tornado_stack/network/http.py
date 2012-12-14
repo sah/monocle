@@ -22,7 +22,9 @@ class HttpClient(HttpClient):
                                              method=method,
                                              headers=headers or {},
                                              body=body,
-                                             request_timeout=self.timeout)
+                                             # XXX: TODO
+                                             #request_timeout=self.timeout
+                                             )
         cb = Callback()
         _http_client.fetch(req, cb)
         response = yield cb
