@@ -2,7 +2,7 @@ import urlparse
 import collections
 
 from monocle import _o, Return
-from monocle.stack.network import ConnectionLost
+from monocle.stack.network import ConnectionLost, Client, SSLClient
 
 
 class HttpHeaders(collections.MutableMapping):
