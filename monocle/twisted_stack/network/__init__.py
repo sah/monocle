@@ -89,6 +89,7 @@ class Service(object):
     def __init__(self, handler, port, bindaddr="", backlog=128):
         self.factory = Factory()
         self.factory.protocol = _Connection
+
         @_o
         def _handler(s):
             try:
@@ -99,22 +100,13 @@ class Service(object):
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
-        self.ssl_options = None
         self._twisted_listening_port = None
 
     def _add(self):
-        if self.ssl_options is not None:
-            cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
-                                                  self.ssl_options['certfile'])
-            self._twisted_listening_port = reactor.listenSSL(
-                self.port, self.factory, cf,
-                backlog=self.backlog,
-                interface=self.bindaddr)
-        else:
-            self._twisted_listening_port = reactor.listenTCP(
-                self.port, self.factory,
-                backlog=self.backlog,
-                interface=self.bindaddr)
+        self._twisted_listening_port = reactor.listenTCP(
+            self.port, self.factory,
+            backlog=self.backlog,
+            interface=self.bindaddr)
 
     @_o
     def stop(self):
@@ -125,12 +117,17 @@ class Service(object):
 
 class SSLService(Service):
 
-    def __init__(self, handler, port, bindaddr="", backlog=128,
-                 ssl_options=None):
-        if ssl_options is None:
-            ssl_options = {}
+    def __init__(self, handler, ssl_options, port, bindaddr="", backlog=128):
         Service.__init__(self, handler, port, bindaddr, backlog)
         self.ssl_options = ssl_options
+
+    def _add(self):
+        cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
+                                              self.ssl_options['certfile'])
+        self._twisted_listening_port = reactor.listenSSL(
+            self.port, self.factory, cf,
+            backlog=self.backlog,
+            interface=self.bindaddr)
 
 
 class SSLContextFactory(ssl.ClientContextFactory):
