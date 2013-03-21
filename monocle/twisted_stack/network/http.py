@@ -9,7 +9,7 @@ from monocle import _o, Return, VERSION, launch, log_exception
 from monocle.callback import Callback
 from monocle.stack.network.http import HttpHeaders, HttpResponse, write_request, read_response, extract_response
 from monocle.twisted_stack.eventloop import reactor
-from monocle.twisted_stack.network import Service, Client, SSLClient
+from monocle.twisted_stack.network import Service, SSLService, Client, SSLClient
 
 from twisted.internet import ssl
 from twisted.internet.protocol import ClientCreator
@@ -63,5 +63,14 @@ class HttpServer(Service):
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
-        self.ssl_options = None
+        self._twisted_listening_port = None
+
+
+class HttpsServer(SSLService):
+    def __init__(self, handler, ssl_options, port, bindaddr="", backlog=128):
+        self.factory = server.Site(_HttpServerResource(handler))
+        self.ssl_options = ssl_options
+        self.port = port
+        self.bindaddr = bindaddr
+        self.backlog = backlog
         self._twisted_listening_port = None
