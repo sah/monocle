@@ -10,6 +10,83 @@ from twisted.internet.error import TimeoutError
 from monocle import _o, Return, launch
 from monocle.callback import Callback
 from monocle.stack.network import Connection, ConnectionLost
+from monocle.util import monkeypatch
+from twisted.protocols.tls import TLSMemoryBIOProtocol, WantReadError
+
+# monkeypatch TLSMemoryBIOProtocol to resume reading when necessary for writes
+@monkeypatch(TLSMemoryBIOProtocol)
+def __init__(orig_method, self, *a, **k):
+    orig_method(self, *a, **k)
+    self._was_paused = False
+
+@monkeypatch(TLSMemoryBIOProtocol)
+def _write(orig_method, self, bytes):
+    """
+    Process the given application bytes and send any resulting TLS traffic
+    which arrives in the send BIO.
+
+    This may be called by C{dataReceived} with bytes that were buffered
+    before C{loseConnection} was called, which is why this function
+    doesn't check for disconnection but accepts the bytes regardless.
+    """
+    if self._lostTLSConnection:
+        return
+
+    leftToSend = bytes
+    while leftToSend:
+        try:
+            sent = self._tlsConnection.send(leftToSend)
+        except WantReadError:
+            self._writeBlockedOnRead = True
+            self._appSendBuffer.append(leftToSend)
+            if self._producer is not None:
+                self._producer.pauseProducing()
+            if self._writeBlockedOnRead:
+                if self.transport.producer._producerPaused:
+                    self._was_paused = True
+                    self.transport.resumeProducing()
+            break
+        except Error:
+            # Pretend TLS connection disconnected, which will trigger
+            # disconnect of underlying transport. The error will be passed
+            # to the application protocol's connectionLost method.  The
+            # other SSL implementation doesn't, but losing helpful
+            # debugging information is a bad idea.
+            self._tlsShutdownFinished(Failure())
+            break
+        else:
+            # If we sent some bytes, the handshake must be done.  Keep
+            # track of this to control error reporting behavior.
+            self._handshakeDone = True
+            self._flushSendBIO()
+            leftToSend = leftToSend[sent:]
+
+@monkeypatch(TLSMemoryBIOProtocol)
+def dataReceived(orig_method, self, bytes):
+    """
+    Deliver any received bytes to the receive BIO and then read and deliver
+    to the application any application-level data which becomes available
+    as a result of this.
+    """
+    self._tlsConnection.bio_write(bytes)
+
+    if self._writeBlockedOnRead:
+        # A read just happened, so we might not be blocked anymore.  Try to
+        # flush all the pending application bytes.
+        self._writeBlockedOnRead = False
+        if self._was_paused:
+            self.transport.pauseProducing()
+        appSendBuffer = self._appSendBuffer
+        self._appSendBuffer = []
+        for bytes in appSendBuffer:
+            self._write(bytes)
+        if (not self._writeBlockedOnRead and self.disconnecting and
+            self.producer is None):
+            self._shutdownTLS()
+        if self._producer is not None:
+            self._producer.resumeProducing()
+
+    self._flushReceiveBIO()
 
 
 class _Connection(Protocol):

@@ -4,7 +4,6 @@
 
 import errno
 import socket
-import new
 
 try:
     import ssl  # Python 2.6+
@@ -17,21 +16,7 @@ from monocle import _o, launch
 from monocle.callback import Callback
 from monocle.stack.network import Connection
 from monocle.tornado_stack.eventloop import evlp
-
-
-def monkeypatch(cls):
-    def decorator(f):
-        orig_method = None
-        method = getattr(cls, f.func_name, None)
-        if method:
-            orig_method = lambda *a, **k: method(*a, **k)
-        def g(*a, **k):
-            return f(orig_method, *a, **k)
-        g.func_name = f.func_name
-        setattr(cls, f.func_name,
-                new.instancemethod(g, None, cls))
-    return decorator
-
+from monocle.util import monkeypatch
 
 # monkeypatch IOStream to provide a reactive read
 @monkeypatch(IOStream)
