@@ -173,7 +173,7 @@ class Service(object):
                 if e[0] not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
                 return
-            iostream = self._get_iostream(s)
+            iostream = self._make_iostream(s)
             if not iostream:
                 return
             connection = TornadoConnection(_Connection(iostream))
@@ -186,7 +186,7 @@ class Service(object):
                                 self._connection_ready,
                                 self._evlp.READ)
 
-    def _get_iostream(self, s):
+    def _make_iostream(self, s):
         return IOStream(s)
 
     @_o
@@ -204,7 +204,7 @@ class SSLService(Service):
         Service.__init__(self, handler, port, bindaddr, backlog)
         self.ssl_options = ssl_options
 
-    def _get_iostream(self, s):
+    def _make_iostream(self, s):
         assert ssl, "Python 2.6+ and OpenSSL required for SSL"
         try:
             s = ssl.wrap_socket(s,
@@ -234,7 +234,7 @@ class Client(TornadoConnection):
     @_o
     def connect(self, host, port):
         s = socket.socket()
-        iostream = self._get_iostream(s)
+        iostream = self._make_iostream(s)
         self._stack_conn = _Connection(iostream)
         self._stack_conn.attach(self)
         self._stack_conn.connect((host, port))
@@ -244,7 +244,7 @@ class Client(TornadoConnection):
 
         yield self._stack_conn.connect_cb
 
-    def _get_iostream(self, s):
+    def _make_iostream(self, s):
         return IOStream(s)
 
 
@@ -256,7 +256,7 @@ class SSLClient(Client):
         Connection.__init__(self)
         self.ssl_options = ssl_options
 
-    def _get_iostream(self, s):
+    def _make_iostream(self, s):
         return SSLIOStream(s, ssl_options=self.ssl_options)
 
 
