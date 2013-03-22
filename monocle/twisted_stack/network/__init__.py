@@ -173,7 +173,6 @@ class SSLContextFactory(ssl.ClientContextFactory):
 class Client(Connection):
     def __init__(self, *args, **kwargs):
         Connection.__init__(self, *args, **kwargs)
-        self.ssl_options = None
         self._connection_timeout = "unknown"
 
     def clientConnectionFailed(self, connector, reason):
@@ -193,14 +192,11 @@ class Client(Connection):
         factory = ClientFactory()
         factory.protocol = lambda: self._stack_conn
         factory.clientConnectionFailed = self.clientConnectionFailed
-        if self.ssl_options is not None:
-            reactor.connectSSL(host, port, factory,
-                               SSLContextFactory(self.ssl_options),
-                               timeout=self._connection_timeout)
-        else:
-            reactor.connectTCP(host, port, factory,
-                               timeout=self._connection_timeout)
+        self._connect_to_reactor(host, port, factory, self._connection_timeout)
         yield self._stack_conn.connect_cb
+
+    def _connect_to_reactor(self, host, port, factory, timeout):
+        reactor.connectTCP(host, port, factory, timeout=timeout)
 
 
 class SSLClient(Client):
@@ -210,6 +206,11 @@ class SSLClient(Client):
             ssl_options = {}
         Connection.__init__(self)
         self.ssl_options = ssl_options
+
+    def _connect_to_reactor(self, host, port, factory, timeout):
+        reactor.connectSSL(host, port, factory,
+                           SSLContextFactory(self.ssl_options),
+                           timeout=timeout)
 
 
 def add_service(service):
