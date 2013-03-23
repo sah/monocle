@@ -164,6 +164,16 @@ def read_response(conn):
     yield Return(HttpResponse(code, msg, headers, body, proto))
 
 
+@_o
+def write_response(conn, resp):
+    yield conn.write("%s %s %s\r\n" % (resp.proto.upper(), resp.code, resp.msg))
+    for k, v in resp.headers.iteritems():
+        yield conn.write("%s: %s\r\n" % (k, v))
+    yield conn.write('\r\n')
+    if resp.body:
+        yield conn.write(resp.body)
+
+
 class HttpClient(object):
     DEFAULT_PORTS = {'http': 80,
                      'https': 443}
