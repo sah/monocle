@@ -68,9 +68,9 @@ class HttpResponse(object):
     def __init__(self, code, msg=None, headers=None, body=None, proto=None):
         self.code = code
         self.msg = msg
-        self.headers = headers
+        self.headers = headers or HttpHeaders()
         self.body = body
-        self.proto = proto
+        self.proto = proto or 'HTTP/1.1'
 
 
 def parse_headers(lines):
