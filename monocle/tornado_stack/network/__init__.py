@@ -175,7 +175,7 @@ class Service(object):
                 return
             iostream = self._make_iostream(s)
             if not iostream:
-                return
+                continue
             connection = TornadoConnection(_Connection(iostream))
             connection._stack_conn.attach(connection)
             self.handler(connection)
