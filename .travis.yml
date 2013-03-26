@@ -1,0 +1,24 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "pypy"
+env:
+  - BACKEND=tornado
+  - BACKEND=twisted
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libssl-dev
+install:
+  - pip install pyOpenSSL $BACKEND --use-mirrors
+  - pip install . --use-mirrors
+script:
+  - python examples/basics.py $BACKEND
+  - python examples/client_server.py $BACKEND
+  - python examples/sleep.py $BACKEND
+  - python examples/tb.py $BACKEND
+
+matrix:
+  exclude:
+    - python: "pypy"
+      env: BACKEND=twisted
