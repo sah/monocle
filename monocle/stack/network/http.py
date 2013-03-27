@@ -68,9 +68,9 @@ class HttpResponse(object):
     def __init__(self, code, msg=None, headers=None, body=None, proto=None):
         self.code = code
         self.msg = msg
-        self.headers = headers
+        self.headers = headers or HttpHeaders()
         self.body = body
-        self.proto = proto
+        self.proto = proto or 'HTTP/1.1'
 
 
 def parse_headers(lines):
@@ -162,6 +162,16 @@ def read_response(conn):
                 break
 
     yield Return(HttpResponse(code, msg, headers, body, proto))
+
+
+@_o
+def write_response(conn, resp):
+    yield conn.write("%s %s %s\r\n" % (resp.proto.upper(), resp.code, resp.msg))
+    for k, v in resp.headers.iteritems():
+        yield conn.write("%s: %s\r\n" % (k, v))
+    yield conn.write('\r\n')
+    if resp.body:
+        yield conn.write(resp.body)
 
 
 class HttpClient(object):
