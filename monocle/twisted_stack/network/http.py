@@ -41,8 +41,14 @@ class _HttpServerResource(resource.Resource):
 
                 request.setResponseCode(code)
                 headers.setdefault('Server', 'monocle/%s' % VERSION)
+                grouped_headers = {}
                 for name, value in headers.iteritems():
-                    request.setHeader(name, value)
+                    if name in grouped_headers:
+                        grouped_headers[name].append(value)
+                    else:
+                        grouped_headers[name] = [value]
+                for name, value in grouped_headers.iteritems():
+                    request.responseHeaders.setRawHeaders(name, value)
                 request.write(content)
 
                 # close connections with a 'close' header
