@@ -1,5 +1,7 @@
-# monocle - An async programming framework with a blocking look-alike syntax.
-By Greg Hazel and Steven Hazel.
+# monocle
+## An async programming framework with a blocking look-alike syntax.
+
+[![Build Status](https://travis-ci.org/saucelabs/monocle.png?branch=master)](https://travis-ci.org/saucelabs/monocle)
 
 monocle straightens out event-driven code using Python's generators.
 It aims to be portable between event-driven I/O frameworks, and
@@ -33,8 +35,7 @@ HTTP server, and the other makes an HTTP request:
 
     @monocle.o
     def request():
-        client = HttpClient()
-        resp = yield client.request('http://127.0.0.1:8088/')
+        resp = yield HttpClient.query('http://127.0.0.1:8088/')
         print resp.code, resp.body
 
     add_service(HttpServer(hello_http, 8088))
@@ -132,6 +133,10 @@ In ordinary Python generators, the norm is to think of `yield` as in
 helpful to think of `yield` as in *traffic*.  `yield conn.read(10)` in
 an o-routine means "yield to other o-routines until we finish reading
 10 bytes".
+
+## Who?
+
+Monocle was created by Greg Hazel and Steven Hazel.
 
 ## Related Work
 monocle is similar to, and takes inspiration from:

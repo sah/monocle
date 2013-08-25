@@ -3,7 +3,7 @@ import sys
 import core
 from core import _o, o, launch, Return, InvalidYieldException, log_exception
 
-VERSION = '0.24'
+VERSION = '0.25'
 
 _stack_name = None
 def init(stack_name):

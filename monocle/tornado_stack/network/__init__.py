@@ -4,7 +4,6 @@
 
 import errno
 import socket
-import new
 
 try:
     import ssl  # Python 2.6+
@@ -17,21 +16,7 @@ from monocle import _o, launch
 from monocle.callback import Callback
 from monocle.stack.network import Connection
 from monocle.tornado_stack.eventloop import evlp
-
-
-def monkeypatch(cls):
-    def decorator(f):
-        orig_method = None
-        method = getattr(cls, f.func_name, None)
-        if method:
-            orig_method = lambda *a, **k: method(*a, **k)
-        def g(*a, **k):
-            return f(orig_method, *a, **k)
-        g.func_name = f.func_name
-        setattr(cls, f.func_name,
-                new.instancemethod(g, None, cls))
-    return decorator
-
+from monocle.util import monkeypatch
 
 # monkeypatch IOStream to provide a reactive read
 @monkeypatch(IOStream)
@@ -188,28 +173,9 @@ class Service(object):
                 if e[0] not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
                 return
-            if self.ssl_options is not None:
-                assert ssl, "Python 2.6+ and OpenSSL required for SSL"
-                try:
-                    s = ssl.wrap_socket(s,
-                                        server_side=True,
-                                        do_handshake_on_connect=False,
-                                        **self.ssl_options)
-                except ssl.SSLError, err:
-                    if err.args[0] == ssl.SSL_ERROR_EOF:
-                        s.close()
-                        return
-                    else:
-                        raise
-                except socket.error, err:
-                    if err.args[0] == errno.ECONNABORTED:
-                        s.close()
-                        return
-                    else:
-                        raise
-                iostream = SSLIOStream(s)
-            else:
-                iostream = IOStream(s)
+            iostream = self._make_iostream(s)
+            if not iostream:
+                continue
             connection = TornadoConnection(_Connection(iostream))
             connection._stack_conn.attach(connection)
             self.handler(connection)
@@ -219,6 +185,9 @@ class Service(object):
         self._evlp._add_handler(self._sock.fileno(),
                                 self._connection_ready,
                                 self._evlp.READ)
+
+    def _make_iostream(self, s):
+        return IOStream(s)
 
     @_o
     def stop(self):
@@ -235,6 +204,27 @@ class SSLService(Service):
         Service.__init__(self, handler, port, bindaddr, backlog)
         self.ssl_options = ssl_options
 
+    def _make_iostream(self, s):
+        assert ssl, "Python 2.6+ and OpenSSL required for SSL"
+        try:
+            s = ssl.wrap_socket(s,
+                                server_side=True,
+                                do_handshake_on_connect=False,
+                                **self.ssl_options)
+        except ssl.SSLError, err:
+            if err.args[0] == ssl.SSL_ERROR_EOF:
+                s.close()
+                return
+            else:
+                raise
+        except socket.error, err:
+            if err.args[0] == errno.ECONNABORTED:
+                s.close()
+                return
+            else:
+                raise
+        return SSLIOStream(s)
+
 
 class Client(TornadoConnection):
     def __init__(self, *args, **kwargs):
@@ -244,10 +234,7 @@ class Client(TornadoConnection):
     @_o
     def connect(self, host, port):
         s = socket.socket()
-        if self.ssl_options is not None:
-            iostream = SSLIOStream(s, ssl_options=self.ssl_options)
-        else:
-            iostream = IOStream(s)
+        iostream = self._make_iostream(s)
         self._stack_conn = _Connection(iostream)
         self._stack_conn.attach(self)
         self._stack_conn.connect((host, port))
@@ -257,6 +244,9 @@ class Client(TornadoConnection):
 
         yield self._stack_conn.connect_cb
 
+    def _make_iostream(self, s):
+        return IOStream(s)
+
 
 class SSLClient(Client):
 
@@ -265,6 +255,9 @@ class SSLClient(Client):
             ssl_options = {}
         Connection.__init__(self)
         self.ssl_options = ssl_options
+
+    def _make_iostream(self, s):
+        return SSLIOStream(s, ssl_options=self.ssl_options)
 
 
 def add_service(service, evlp=evlp):

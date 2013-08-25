@@ -198,7 +198,7 @@ def maybeCallbackGenerator(f, *args, **kw):
         return result
     elif isinstance(result, TwistedDeferred):
         cb = Callback()
-        result.addCallbacks(cb, lambda f : cb(_add_twisted_tb(f)))
+        result.addCallbacks(cb, lambda f: cb(_add_twisted_tb(f)))
         return cb
     return defer(result)
 

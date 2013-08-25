@@ -10,6 +10,32 @@ from twisted.internet.error import TimeoutError
 from monocle import _o, Return, launch
 from monocle.callback import Callback
 from monocle.stack.network import Connection, ConnectionLost
+from monocle.util import monkeypatch
+from twisted.protocols.tls import TLSMemoryBIOProtocol, WantReadError
+
+# monkeypatch TLSMemoryBIOProtocol to resume reading when necessary for writes
+@monkeypatch(TLSMemoryBIOProtocol)
+def __init__(orig_method, self, *a, **k):
+    orig_method(self, *a, **k)
+    self._was_paused = False
+
+@monkeypatch(TLSMemoryBIOProtocol)
+def _write(orig_method, self, bytes):
+    was_blocked = self._writeBlockedOnRead
+    orig_method(self, bytes)
+    if self._writeBlockedOnRead and not was_blocked:
+        if self.transport.producer._producerPaused:
+            self._was_paused = True
+            self.transport.resumeProducing()
+
+@monkeypatch(TLSMemoryBIOProtocol)
+def dataReceived(orig_method, self, bytes):
+    was_blocked = self._writeBlockedOnRead
+    orig_method(self, bytes)
+    if not self._writeBlockedOnRead and was_blocked:
+        if self._was_paused:
+            self.transport.pauseProducing()
+            self._was_paused = False
 
 
 class _Connection(Protocol):
@@ -89,6 +115,7 @@ class Service(object):
     def __init__(self, handler, port, bindaddr="", backlog=128):
         self.factory = Factory()
         self.factory.protocol = _Connection
+
         @_o
         def _handler(s):
             try:
@@ -99,22 +126,13 @@ class Service(object):
         self.port = port
         self.bindaddr = bindaddr
         self.backlog = backlog
-        self.ssl_options = None
         self._twisted_listening_port = None
 
     def _add(self):
-        if self.ssl_options is not None:
-            cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
-                                                  self.ssl_options['certfile'])
-            self._twisted_listening_port = reactor.listenSSL(
-                self.port, self.factory, cf,
-                backlog=self.backlog,
-                interface=self.bindaddr)
-        else:
-            self._twisted_listening_port = reactor.listenTCP(
-                self.port, self.factory,
-                backlog=self.backlog,
-                interface=self.bindaddr)
+        self._twisted_listening_port = reactor.listenTCP(
+            self.port, self.factory,
+            backlog=self.backlog,
+            interface=self.bindaddr)
 
     @_o
     def stop(self):
@@ -125,12 +143,17 @@ class Service(object):
 
 class SSLService(Service):
 
-    def __init__(self, handler, port, bindaddr="", backlog=128,
-                 ssl_options=None):
-        if ssl_options is None:
-            ssl_options = {}
+    def __init__(self, handler, ssl_options, port, bindaddr="", backlog=128):
         Service.__init__(self, handler, port, bindaddr, backlog)
         self.ssl_options = ssl_options
+
+    def _add(self):
+        cf = ssl.DefaultOpenSSLContextFactory(self.ssl_options['keyfile'],
+                                              self.ssl_options['certfile'])
+        self._twisted_listening_port = reactor.listenSSL(
+            self.port, self.factory, cf,
+            backlog=self.backlog,
+            interface=self.bindaddr)
 
 
 class SSLContextFactory(ssl.ClientContextFactory):
@@ -150,7 +173,6 @@ class SSLContextFactory(ssl.ClientContextFactory):
 class Client(Connection):
     def __init__(self, *args, **kwargs):
         Connection.__init__(self, *args, **kwargs)
-        self.ssl_options = None
         self._connection_timeout = "unknown"
 
     def clientConnectionFailed(self, connector, reason):
@@ -170,14 +192,11 @@ class Client(Connection):
         factory = ClientFactory()
         factory.protocol = lambda: self._stack_conn
         factory.clientConnectionFailed = self.clientConnectionFailed
-        if self.ssl_options is not None:
-            reactor.connectSSL(host, port, factory,
-                               SSLContextFactory(self.ssl_options),
-                               timeout=self._connection_timeout)
-        else:
-            reactor.connectTCP(host, port, factory,
-                               timeout=self._connection_timeout)
+        self._connect_to_reactor(host, port, factory, self._connection_timeout)
         yield self._stack_conn.connect_cb
+
+    def _connect_to_reactor(self, host, port, factory, timeout):
+        reactor.connectTCP(host, port, factory, timeout=timeout)
 
 
 class SSLClient(Client):
@@ -187,6 +206,11 @@ class SSLClient(Client):
             ssl_options = {}
         Connection.__init__(self)
         self.ssl_options = ssl_options
+
+    def _connect_to_reactor(self, host, port, factory, timeout):
+        reactor.connectSSL(host, port, factory,
+                           SSLContextFactory(self.ssl_options),
+                           timeout=timeout)
 
 
 def add_service(service):
