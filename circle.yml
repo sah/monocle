@@ -1,7 +1,4 @@
 dependencies:
-  pre:
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq libssl-dev
   post:
     - pip install pyOpenSSL tornado --use-mirrors
     - pip install . --use-mirrors
