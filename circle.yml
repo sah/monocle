@@ -1,0 +1,6 @@
+test:
+  override:
+  - python examples/basics.py tornado
+  - python examples/client_server.py tornado
+  - python examples/sleep.py tornado
+  - python examples/tb.py tornado
