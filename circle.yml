@@ -1,6 +1,13 @@
+dependencies:
+  pre:
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq libssl-dev
+  post:
+    - pip install pyOpenSSL tornado --use-mirrors
+    - pip install . --use-mirrors
 test:
   override:
-  - python examples/basics.py tornado
-  - python examples/client_server.py tornado
-  - python examples/sleep.py tornado
-  - python examples/tb.py tornado
+    - python examples/basics.py tornado
+    - python examples/client_server.py tornado
+    - python examples/sleep.py tornado
+    - python examples/tb.py tornado
