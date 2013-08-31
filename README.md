@@ -2,6 +2,7 @@
 ## An async programming framework with a blocking look-alike syntax.
 
 [![Build Status](https://travis-ci.org/saucelabs/monocle.png?branch=master)](https://travis-ci.org/saucelabs/monocle)
+[![Codeship](https://www.codeship.io/projects/09a51ba0-f48b-0130-faaf-76cbe3f361e0/status)]
 
 monocle straightens out event-driven code using Python's generators.
 It aims to be portable between event-driven I/O frameworks, and
